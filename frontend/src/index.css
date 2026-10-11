@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+/*
+ * Tokens de diseño tomados del prototipo de Stitch (code.html + DESIGN.md).
+ * Se usan como clases de Tailwind: bg-brand-600, text-status-busy-text, bg-canvas, etc.
+ */
+@theme {
+  --font-sans: 'Plus Jakarta Sans', sans-serif;
+
+  /* Marca: escala ámbar. Acción principal = 600, hover/presionado = 700. */
+  --color-brand-50: #fffbeb;
+  --color-brand-100: #fef3c7;
+  --color-brand-200: #fde68a;
+  --color-brand-300: #fcd34d;
+  --color-brand-400: #fbbf24;
+  --color-brand-500: #f59e0b;
+  --color-brand-600: #d97706;
+  --color-brand-700: #b45309;
+  --color-brand-800: #92400e;
+  --color-brand-900: #78350f;
+
+  /* Fondo general crema y borde suave de tarjetas. */
+  --color-canvas: #faf7f2;
+  --color-borde: #ebe5dc;
+
+  /* Semáforo de estados (mesas, comandas, reservas). */
+  --color-status-free: #10b981;
+  --color-status-free-bg: #ecfdf5;
+  --color-status-free-border: #a7f3d0;
+  --color-status-free-text: #065f46;
+  --color-status-busy: #ef4444;
+  --color-status-busy-bg: #fef2f2;
+  --color-status-busy-border: #fecaca;
+  --color-status-busy-text: #991b1b;
+  --color-status-waiting: #f59e0b;
+  --color-status-waiting-bg: #fffbeb;
+  --color-status-waiting-border: #fde68a;
+  --color-status-waiting-text: #92400e;
+  --color-status-reserved: #3b82f6;
+  --color-status-reserved-bg: #eff6ff;
+  --color-status-reserved-border: #bfdbfe;
+  --color-status-reserved-text: #1e40af;
+  --color-status-inactive: #a8a29e;
+}
+
+@layer base {
+  body {
+    @apply bg-canvas font-sans text-slate-800 antialiased;
+  }
+}
+
+/* Montos alineados en columnas (DESIGN.md: cifras tabulares). */
+@utility tabular {
+  font-variant-numeric: tabular-nums;
+}

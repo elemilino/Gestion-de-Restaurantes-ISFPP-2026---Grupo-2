@@ -1,0 +1,13 @@
+[project]
+name = "restaurante-backend"
+version = "0.1.0"
+description = "Backend del sistema de gestión del restaurante (ISFPP 2026, IS3)"
+requires-python = ">=3.12"
+
+[tool.black]
+line-length = 88
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+pythonpath = ["."]

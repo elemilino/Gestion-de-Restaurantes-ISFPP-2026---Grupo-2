@@ -1,0 +1,23 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Base de datos de desarrollo (se recrea con: python -m app.seed)
+*.db
+*.db-wal
+*.db-shm
+
+# Configuración local (copiar desde .env.example)
+.env
+
+# Node / Vite
+node_modules/
+dist/
+coverage/
+
+# Editores y sistema
+.vscode/
+.idea/
+.DS_Store
