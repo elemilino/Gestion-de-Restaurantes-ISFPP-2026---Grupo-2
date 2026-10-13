@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router'
 
 import { LoginPage } from './auth/LoginPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
+import { MozosPage } from './features/mozos/MozosPage'
 import { MesasPage } from './features/salon/MesasPage'
 import { AppLayout } from './layout/AppLayout'
 import { NotFoundPage } from './pages/NotFoundPage'
@@ -26,7 +27,8 @@ export default function App() {
           <Route path="/caja" element={<PendientePage />} />
           <Route path="/historial" element={<PendientePage />} />
           <Route path="/reportes" element={<PendientePage />} />
-          <Route path="/configuracion" element={<PendientePage />} />
+          <Route path="/configuracion" element={<MozosPage />} />
+          <Route path="/configuracion/mozos" element={<MozosPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>
