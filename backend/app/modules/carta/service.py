@@ -195,3 +195,67 @@ class ProductoService:
             tipo, datos.nombre, excluir_id, volumen_ml
         ):
             raise ConflictError(MENSAJE_DUPLICADO[tipo], "PRODUCTO_DUPLICADO")
+
+    # --- Stock y disponibilidad (HU-04d) ---
+
+    def cambiar_disponibilidad(self, producto_id: int, disponible: bool) -> Producto:
+        """CA1 y CA2: marca manual de disponible / no disponible."""
+        producto = self.obtener(producto_id)
+        producto.disponible = disponible
+        self.db.commit()
+        return producto
+
+    def cambiar_stock(self, producto_id: int, stock: int | None) -> Producto:
+        """CA4 a CA6: carga, cambia o quita (`None`) el control de stock.
+
+        Llegar a 0 no cambia la marca `disponible` (decisión C8): al reponer,
+        el producto vuelve a estar disponible solo.
+        """
+        producto = self.obtener(producto_id)
+        producto.stock = stock
+        self.db.commit()
+        return producto
+
+    # Interfaz pública para HU-05 (comandas). No hacen commit: lo hace quien
+    # los llama, dentro de su propia operación.
+
+    def verificar_pedible(self, producto_id: int, cantidad: int) -> Producto:
+        """Devuelve el producto si se puede agregar `cantidad` unidades a una comanda.
+
+        Lanza NotFoundError (PRODUCTO_NO_ENCONTRADO) si no existe o fue eliminado,
+        BusinessRuleError (PRODUCTO_NO_DISPONIBLE) si está marcado no disponible y
+        BusinessRuleError (PRODUCTO_SIN_STOCK) si controla stock y no alcanza.
+        No hace commit.
+        """
+        producto = self.obtener(producto_id)
+        if not producto.disponible:
+            raise BusinessRuleError(
+                f"{producto.nombre} no está disponible", "PRODUCTO_NO_DISPONIBLE"
+            )
+        self._verificar_stock(producto, cantidad)
+        return producto
+
+    def descontar_stock(self, producto: Producto, cantidad: int) -> None:
+        """Resta `cantidad` del stock si el producto lo controla (si no, no hace nada).
+
+        Si no alcanza lanza PRODUCTO_SIN_STOCK (conviene llamar antes a
+        `verificar_pedible`). No hace commit.
+        """
+        if producto.stock is None:
+            return
+        self._verificar_stock(producto, cantidad)
+        producto.stock -= cantidad
+
+    def reponer_stock(self, producto: Producto, cantidad: int) -> None:
+        """Suma `cantidad` al stock si el producto lo controla. No hace commit."""
+        if producto.stock is not None:
+            producto.stock += cantidad
+
+    @staticmethod
+    def _verificar_stock(producto: Producto, cantidad: int) -> None:
+        if producto.stock is not None and producto.stock < cantidad:
+            raise BusinessRuleError(
+                f"No hay stock suficiente de {producto.nombre} "
+                f"(quedan {producto.stock})",
+                "PRODUCTO_SIN_STOCK",
+            )

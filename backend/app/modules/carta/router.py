@@ -12,6 +12,7 @@ from app.core.enums import Rol, TipoProducto
 from app.modules.carta.schemas import (
     BebidaCreate,
     BebidaUpdate,
+    DisponibilidadIn,
     PlatoCreate,
     PlatoUpdate,
     PostreCreate,
@@ -20,6 +21,7 @@ from app.modules.carta.schemas import (
     SeccionCreate,
     SeccionOut,
     SeccionUpdate,
+    StockIn,
 )
 from app.modules.carta.service import ProductoService, SeccionService
 
@@ -108,6 +110,31 @@ def obtener_producto(producto_id: int, db: Session = Depends(get_db)):
 )
 def eliminar_producto(producto_id: int, db: Session = Depends(get_db)):
     ProductoService(db).eliminar(producto_id)
+
+
+# --- Stock y disponibilidad (HU-04d) ---
+
+
+@router.patch(
+    "/productos/{producto_id}/disponibilidad",
+    response_model=ProductoOut,
+    dependencies=solo_admin,
+    summary="Marcar producto disponible / no disponible",
+)
+def cambiar_disponibilidad(
+    producto_id: int, datos: DisponibilidadIn, db: Session = Depends(get_db)
+):
+    return ProductoService(db).cambiar_disponibilidad(producto_id, datos.disponible)
+
+
+@router.patch(
+    "/productos/{producto_id}/stock",
+    response_model=ProductoOut,
+    dependencies=solo_admin,
+    summary="Cargar, cambiar o quitar el stock de un producto",
+)
+def cambiar_stock(producto_id: int, datos: StockIn, db: Session = Depends(get_db)):
+    return ProductoService(db).cambiar_stock(producto_id, datos.stock)
 
 
 # --- Platos (HU-04a) ---

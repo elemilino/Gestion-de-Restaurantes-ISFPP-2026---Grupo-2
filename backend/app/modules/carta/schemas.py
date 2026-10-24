@@ -96,3 +96,14 @@ class ProductoOut(BaseModel):
     alcoholica: bool | None
     disponible: bool
     stock: int | None
+    disponible_efectivo: bool
+
+
+class DisponibilidadIn(BaseModel):
+    disponible: bool
+
+
+class StockIn(BaseModel):
+    """`null` = dejar de controlar el stock del producto."""
+
+    stock: int | None = Field(ge=0)
