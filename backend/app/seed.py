@@ -11,6 +11,7 @@ from app import models  # noqa: F401  (registra las tablas para create_all)
 from app.core.database import Base, SessionLocal, engine
 from app.core.enums import Rol
 from app.core.security import hashear_password
+from app.models.carta import SeccionCarta
 from app.models.personal import Mozo
 from app.models.salon import Mesa, Sector
 from app.models.usuario import Usuario
@@ -72,6 +73,27 @@ def seed_mozos(db, usuario_mozo: Usuario, sector_salon: Sector) -> None:
     db.add(mozo)
 
 
+SECCIONES_CARTA = [
+    "Entradas",
+    "Pastas",
+    "Minutas",
+    "Bien argentino",
+    "Postres",
+    "Cervezas",
+    "Bebidas sin alcohol",
+]
+
+
+def seed_carta(db) -> None:
+    """Secciones y productos de ejemplo de la carta (HU-03a, HU-04a a HU-04d)."""
+    secciones = {}
+    for orden, nombre in enumerate(SECCIONES_CARTA, start=1):
+        seccion = SeccionCarta(nombre=nombre, orden=orden, activo=True)
+        db.add(seccion)
+        secciones[nombre] = seccion
+    db.flush()
+
+
 def main() -> None:
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
@@ -79,9 +101,11 @@ def main() -> None:
         usuarios = seed_usuarios(db)
         sectores = seed_salon(db)
         seed_mozos(db, usuarios["mozo"], sectores["Salón Principal"])
+        seed_carta(db)
         db.commit()
     print("Base recreada. Usuarios: admin / mozo (contraseña: 1234)")
     print("Sectores y mesas creados con mozo asignado a Salón Principal.")
+    print("Carta de ejemplo cargada.")
 
 
 if __name__ == "__main__":
