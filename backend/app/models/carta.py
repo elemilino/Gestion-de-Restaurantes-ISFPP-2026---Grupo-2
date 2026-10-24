@@ -46,3 +46,10 @@ class Producto(Base):
     activo: Mapped[bool] = mapped_column(default=True)
 
     seccion: Mapped[SeccionCarta] = relationship(back_populates="productos")
+
+    @property
+    def disponible_efectivo(self) -> bool:
+        """Lo que ve el mozo: activo, marcado disponible y con stock si lo controla."""
+        return (
+            self.activo and self.disponible and (self.stock is None or self.stock > 0)
+        )
