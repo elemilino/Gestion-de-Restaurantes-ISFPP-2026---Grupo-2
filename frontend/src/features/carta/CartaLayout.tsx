@@ -26,6 +26,12 @@ const PESTANIAS: Pestania[] = [
     icono: 'view_list',
     roles: [Rol.ADMINISTRADOR],
   },
+  {
+    ruta: '/carta/productos',
+    etiqueta: 'Productos',
+    icono: 'inventory_2',
+    roles: [Rol.ADMINISTRADOR],
+  },
 ]
 
 /** Encabezado "Carta y Menú" con pestañas; debajo, la página de la subruta. */
