@@ -7,11 +7,13 @@ Cada HU puede agregar sus datos de ejemplo en una función `seed_<modulo>(db)` y
 llamarla desde `main()`.
 """
 
+from decimal import Decimal
+
 from app import models  # noqa: F401  (registra las tablas para create_all)
 from app.core.database import Base, SessionLocal, engine
-from app.core.enums import Rol
+from app.core.enums import Rol, TipoProducto
 from app.core.security import hashear_password
-from app.models.carta import SeccionCarta
+from app.models.carta import Producto, SeccionCarta
 from app.models.personal import Mozo
 from app.models.salon import Mesa, Sector
 from app.models.usuario import Usuario
@@ -91,6 +93,37 @@ def seed_carta(db) -> None:
         seccion = SeccionCarta(nombre=nombre, orden=orden, activo=True)
         db.add(seccion)
         secciones[nombre] = seccion
+    db.flush()
+
+    def producto(tipo, nombre, precio, seccion, **datos) -> Producto:
+        p = Producto(
+            tipo=tipo,
+            nombre=nombre,
+            precio=Decimal(precio),
+            seccion_id=secciones[seccion].id,
+            **datos,
+        )
+        db.add(p)
+        return p
+
+    # HU-04a: platos
+    producto(
+        TipoProducto.PLATO,
+        "Ñoquis con salsa",
+        "5000",
+        "Pastas",
+        descripcion="Ñoquis de papa con salsa fileto",
+        porcion_gramos=350,
+    )
+    producto(TipoProducto.PLATO, "Milanesa napolitana", "8500", "Minutas")
+    producto(TipoProducto.PLATO, "Empanada de carne", "1200", "Entradas")
+    producto(
+        TipoProducto.PLATO,
+        "Bife de chorizo",
+        "14000",
+        "Bien argentino",
+        porcion_gramos=400,
+    )
     db.flush()
 
 
