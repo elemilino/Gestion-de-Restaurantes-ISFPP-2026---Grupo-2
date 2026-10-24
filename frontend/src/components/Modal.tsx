@@ -8,9 +8,19 @@ interface ModalProps {
   titulo: string
   children: ReactNode
   ancho?: string
+  /** Botones del pie (ej. Cancelar / Guardar). */
+  acciones?: ReactNode
 }
 
-export function Modal({ abierto, onCerrar, titulo, children, ancho = 'max-w-md' }: ModalProps) {
+/** Diálogo centrado. Cierra con Escape o con la X. */
+export function Modal({
+  abierto,
+  onCerrar,
+  titulo,
+  children,
+  ancho = 'max-w-md',
+  acciones,
+}: ModalProps) {
   useEffect(() => {
     function manejarEscape(e: KeyboardEvent) {
       if (e.key === 'Escape') onCerrar()
@@ -33,6 +43,7 @@ export function Modal({ abierto, onCerrar, titulo, children, ancho = 'max-w-md' 
         className={`bg-white w-full ${ancho} rounded-2xl shadow-xl border border-amber-100 flex flex-col overflow-hidden max-h-[90vh]`}
         role="dialog"
         aria-modal="true"
+        aria-label={titulo}
       >
         <header className="px-6 py-4 border-b border-amber-100/80 flex items-center justify-between bg-amber-50/40">
           <h2 className="text-base font-bold text-slate-900">{titulo}</h2>
@@ -46,6 +57,11 @@ export function Modal({ abierto, onCerrar, titulo, children, ancho = 'max-w-md' 
           </button>
         </header>
         <div className="p-6 overflow-y-auto">{children}</div>
+        {acciones && (
+          <footer className="px-6 py-4 border-t border-borde flex items-center justify-end gap-2">
+            {acciones}
+          </footer>
+        )}
       </div>
     </div>
   )
