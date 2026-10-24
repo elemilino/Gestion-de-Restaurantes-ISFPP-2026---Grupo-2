@@ -106,9 +106,16 @@ class ProductoRepository:
         return sorted(self.db.scalars(consulta), key=lambda p: clave_nombre(p.nombre))
 
     def buscar_activo_por_nombre(
-        self, tipo: TipoProducto, nombre: str, excluir_id: int | None = None
+        self,
+        tipo: TipoProducto,
+        nombre: str,
+        excluir_id: int | None = None,
+        volumen_ml: int | None = None,
     ) -> Producto | None:
-        """Producto activo del mismo tipo y nombre (sin distinguir mayúsculas)."""
+        """Producto activo del mismo tipo y nombre (sin distinguir mayúsculas).
+
+        Con `volumen_ml` (bebidas), además tiene que coincidir el volumen.
+        """
         consulta = select(Producto).where(
             Producto.activo,
             Producto.tipo == tipo,
@@ -116,6 +123,8 @@ class ProductoRepository:
         )
         if excluir_id is not None:
             consulta = consulta.where(Producto.id != excluir_id)
+        if volumen_ml is not None:
+            consulta = consulta.where(Producto.volumen_ml == volumen_ml)
         return next(
             (p for p in self.db.scalars(consulta) if _mismo_nombre(p.nombre, nombre)),
             None,

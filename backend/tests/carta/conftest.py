@@ -37,6 +37,8 @@ def crear_producto(db):
         porcion_gramos: int | None = None,
         disponible: bool = True,
         stock: int | None = None,
+        volumen_ml: int | None = None,
+        alcoholica: bool | None = None,
     ):
         producto = Producto(
             nombre=nombre,
@@ -48,6 +50,8 @@ def crear_producto(db):
             porcion_gramos=porcion_gramos,
             disponible=disponible,
             stock=stock,
+            volumen_ml=volumen_ml,
+            alcoholica=alcoholica,
         )
         db.add(producto)
         db.commit()

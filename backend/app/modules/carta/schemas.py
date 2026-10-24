@@ -71,6 +71,17 @@ class PostreUpdate(ProductoConPorcion):
     """El PUT reemplaza todos los datos editables del postre."""
 
 
+class BebidaCreate(ProductoBase):
+    """Bebida: datos comunes + volumen (obligatorio) y si es alcohólica."""
+
+    volumen_ml: int = Field(gt=0)
+    alcoholica: bool
+
+
+class BebidaUpdate(BebidaCreate):
+    """El PUT reemplaza todos los datos editables de la bebida."""
+
+
 class ProductoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -81,5 +92,7 @@ class ProductoOut(BaseModel):
     tipo: TipoProducto
     seccion_id: int
     porcion_gramos: int | None
+    volumen_ml: int | None
+    alcoholica: bool | None
     disponible: bool
     stock: int | None

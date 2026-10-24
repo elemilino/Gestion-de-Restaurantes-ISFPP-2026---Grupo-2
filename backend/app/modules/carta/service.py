@@ -92,6 +92,7 @@ class SeccionService:
 MENSAJE_DUPLICADO = {
     TipoProducto.PLATO: "Ya existe un plato con ese nombre",
     TipoProducto.POSTRE: "Ya existe un postre con ese nombre",
+    TipoProducto.BEBIDA: "Ya existe una bebida con ese nombre y volumen",
 }
 
 
@@ -185,6 +186,12 @@ class ProductoService:
     def _validar_unico(
         self, tipo: TipoProducto, datos: ProductoBase, excluir_id: int | None = None
     ) -> None:
-        """CA2: nombre único entre los productos activos del mismo tipo."""
-        if self.productos.buscar_activo_por_nombre(tipo, datos.nombre, excluir_id):
+        """CA2: nombre único entre los productos activos del mismo tipo.
+
+        En las bebidas la unicidad es por nombre y volumen (HU-04c).
+        """
+        volumen_ml = getattr(datos, "volumen_ml", None)
+        if self.productos.buscar_activo_por_nombre(
+            tipo, datos.nombre, excluir_id, volumen_ml
+        ):
             raise ConflictError(MENSAJE_DUPLICADO[tipo], "PRODUCTO_DUPLICADO")
