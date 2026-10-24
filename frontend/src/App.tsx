@@ -6,6 +6,7 @@ import { RequiereRol } from './auth/RequiereRol'
 import { CartaLayout } from './features/carta/CartaLayout'
 import { ProductosPage } from './features/carta/ProductosPage'
 import { SeccionesPage } from './features/carta/SeccionesPage'
+import { VerCartaPage } from './features/carta/VerCartaPage'
 import { MozosPage } from './features/mozos/MozosPage'
 import { MesasPage } from './features/salon/MesasPage'
 import { AppLayout } from './layout/AppLayout'
@@ -27,7 +28,7 @@ export default function App() {
           <Route index element={<Navigate to="/mesas" replace />} />
           <Route path="/mesas" element={<MesasPage />} />
           <Route path="/carta" element={<CartaLayout />}>
-            <Route index element={<PendientePage />} />
+            <Route index element={<VerCartaPage />} />
             <Route
               path="secciones"
               element={
