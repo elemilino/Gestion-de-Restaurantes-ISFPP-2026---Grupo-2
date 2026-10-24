@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../../api/client'
-import type { FiltrosProductos, Producto, ProductoDatos, Seccion } from './types'
+import type { Carta, FiltrosProductos, Producto, ProductoDatos, Seccion } from './types'
 
 // --- Secciones (HU-03a) ---
 
@@ -53,3 +53,8 @@ export const cambiarDisponibilidad = (id: number, disponible: boolean) =>
 
 export const cambiarStock = (id: number, stock: number | null) =>
   apiPatch<Producto>(`/carta/productos/${id}/stock`, { stock })
+
+// --- Ver carta (HU-03b) ---
+
+export const verCarta = (seccionId?: number) =>
+  apiGet<Carta>('/carta' + (seccionId ? '?seccion_id=' + seccionId : ''))

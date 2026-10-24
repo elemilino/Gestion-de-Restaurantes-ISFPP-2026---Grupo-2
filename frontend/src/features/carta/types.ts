@@ -42,3 +42,29 @@ export interface FiltrosProductos {
   tipo?: TipoProducto
   seccion_id?: number
 }
+
+/** ProductoCartaOut (HU-03b). `disponible` es la disponibilidad efectiva. */
+export interface ProductoCarta {
+  id: number
+  nombre: string
+  descripcion: string | null
+  precio: string
+  tipo: TipoProducto
+  porcion_gramos: number | null
+  volumen_ml: number | null
+  alcoholica: boolean | null
+  disponible: boolean
+}
+
+/** SeccionCartaOut (HU-03b). */
+export interface SeccionCarta {
+  id: number
+  nombre: string
+  orden: number
+  productos: ProductoCarta[]
+}
+
+/** CartaOut (HU-03b). */
+export interface Carta {
+  secciones: SeccionCarta[]
+}
