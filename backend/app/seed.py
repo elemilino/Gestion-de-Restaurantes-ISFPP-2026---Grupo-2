@@ -117,7 +117,7 @@ def seed_carta(db) -> None:
     )
     producto(TipoProducto.PLATO, "Milanesa napolitana", "8500", "Minutas")
     producto(TipoProducto.PLATO, "Empanada de carne", "1200", "Entradas")
-    producto(
+    bife = producto(
         TipoProducto.PLATO,
         "Bife de chorizo",
         "14000",
@@ -126,8 +126,10 @@ def seed_carta(db) -> None:
     )
 
     # HU-04b: postres
-    producto(TipoProducto.POSTRE, "Flan casero", "3000", "Postres")
-    producto(TipoProducto.POSTRE, "Panqueque con dulce de leche", "3500", "Postres")
+    flan = producto(TipoProducto.POSTRE, "Flan casero", "3000", "Postres")
+    panqueque = producto(
+        TipoProducto.POSTRE, "Panqueque con dulce de leche", "3500", "Postres"
+    )
 
     # HU-04c: bebidas
     sin_alcohol = "Bebidas sin alcohol"
@@ -140,6 +142,11 @@ def seed_carta(db) -> None:
     )
     producto(bebida, "Gaseosa", "1800", sin_alcohol, volumen_ml=350, alcoholica=False)
     producto(bebida, "Gaseosa", "3500", sin_alcohol, volumen_ml=1500, alcoholica=False)
+
+    # HU-04d: stock y disponibilidad
+    flan.stock = 10
+    bife.stock = 0
+    panqueque.disponible = False
     db.flush()
 
 
