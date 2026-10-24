@@ -37,6 +37,9 @@ class Producto(Base):
     seccion_id: Mapped[int] = mapped_column(ForeignKey("seccion_carta.id"))
     # Plato y postre (opcional).
     porcion_gramos: Mapped[int | None]
+    # Bebida (obligatorios en bebidas, vacíos en plato y postre).
+    volumen_ml: Mapped[int | None]
+    alcoholica: Mapped[bool | None]
     # Marca manual y stock opcional (None = no se controla). Lógica en HU-04d.
     disponible: Mapped[bool] = mapped_column(default=True)
     stock: Mapped[int | None]

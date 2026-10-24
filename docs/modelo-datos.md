@@ -51,6 +51,8 @@ classDiagram
         precio: Numeric(12,2)
         tipo: TipoProducto
         porcion_gramos
+        volumen_ml
+        alcoholica
         disponible
         stock
         activo
@@ -82,7 +84,7 @@ classDiagram
 | `mesa` (`salon.py`) | id, numero, capacidad, sector_id, activo | HU-01b | número único entre activas; capacidad > 0; bloqueos por reserva o comanda. |
 | `mozo` (`personal.py`) | id, dni (único), nombre, apellido, activo | HU-02 | teléfono, turno, sector asignado. |
 | `seccion_carta` (`carta.py`) | id, nombre, orden, activo | HU-03a | validaciones de nombre (3 a 50, único entre activas) y orden. |
-| `producto` (`carta.py`) | id, nombre (60), descripcion, precio, tipo, seccion_id, porcion_gramos, disponible, stock, activo | HU-04a–d | Agregadas en HU-04a: descripción (≤ 200), porción en gramos (plato/postre), disponible y stock (lógica en HU-04d). Pendiente: volumen y alcohólica (bebida). |
+| `producto` (`carta.py`) | id, nombre (60), descripcion, precio, tipo, seccion_id, porcion_gramos, volumen_ml, alcoholica, disponible, stock, activo | HU-04a–d | HU-04a: descripción (≤ 200), porción en gramos (plato/postre), disponible y stock (lógica en HU-04d). HU-04c: volumen en ml y alcohólica (bebida). |
 | `comanda` (`comandas.py`) | id, fecha_hora, mesa_id, mozo_id, estado (ABIERTA por defecto) | HU-05a | comensales, turno, reserva asociada. |
 | `detalle_comanda` (`comandas.py`) | id, comanda_id, producto_id, cantidad, precio_unitario | HU-05b, HU-06 | estado de entrega (HU-06). |
 
