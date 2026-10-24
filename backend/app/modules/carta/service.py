@@ -5,9 +5,16 @@ from sqlalchemy.orm import Session
 from app.core.enums import TipoProducto
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
 from app.models.carta import Producto, SeccionCarta
-from app.modules.carta.repository import ProductoRepository, SeccionRepository
+from app.modules.carta.repository import (
+    ProductoRepository,
+    SeccionRepository,
+    clave_nombre,
+)
 from app.modules.carta.schemas import (
+    CartaOut,
     ProductoBase,
+    ProductoCartaOut,
+    SeccionCartaOut,
     SeccionCreate,
     SeccionOut,
     SeccionUpdate,
@@ -259,3 +266,65 @@ class ProductoService:
                 f"(quedan {producto.stock})",
                 "PRODUCTO_SIN_STOCK",
             )
+
+
+class CartaService:
+    """HU-03b: ver la carta (solo lectura, para cualquier usuario con sesión)."""
+
+    def __init__(self, db: Session):
+        self.secciones = SeccionRepository(db)
+        self.productos = ProductoRepository(db)
+
+    def ver_carta(self, seccion_id: int | None = None) -> CartaOut:
+        """Secciones activas en orden con sus productos activos ordenados por nombre.
+
+        CA2: con `seccion_id`, solo esa sección. CA5: se omiten las secciones sin
+        productos activos. CA6: dos consultas en total (sin N+1).
+        """
+        if seccion_id is None:
+            secciones = self.secciones.listar_activas()
+        else:
+            seccion = self.secciones.obtener_activa(seccion_id)
+            if seccion is None:
+                raise NotFoundError("La sección no existe", "SECCION_NO_ENCONTRADA")
+            secciones = [seccion]
+
+        por_seccion: dict[int, list[Producto]] = {}
+        for producto in self.productos.listar_activos_de_secciones(
+            [s.id for s in secciones]
+        ):
+            por_seccion.setdefault(producto.seccion_id, []).append(producto)
+
+        return CartaOut(
+            secciones=[
+                SeccionCartaOut(
+                    id=seccion.id,
+                    nombre=seccion.nombre,
+                    orden=seccion.orden,
+                    productos=[
+                        self._a_carta(p)
+                        for p in sorted(
+                            por_seccion[seccion.id],
+                            key=lambda p: clave_nombre(p.nombre),
+                        )
+                    ],
+                )
+                for seccion in secciones
+                if por_seccion.get(seccion.id)
+            ]
+        )
+
+    @staticmethod
+    def _a_carta(producto: Producto) -> ProductoCartaOut:
+        """CA4: `disponible` es la disponibilidad efectiva (marca manual y stock)."""
+        return ProductoCartaOut(
+            id=producto.id,
+            nombre=producto.nombre,
+            descripcion=producto.descripcion,
+            precio=producto.precio,
+            tipo=producto.tipo,
+            porcion_gramos=producto.porcion_gramos,
+            volumen_ml=producto.volumen_ml,
+            alcoholica=producto.alcoholica,
+            disponible=producto.disponible_efectivo,
+        )

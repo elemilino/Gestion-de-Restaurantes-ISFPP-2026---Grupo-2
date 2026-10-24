@@ -141,3 +141,12 @@ class ProductoRepository:
             )
         )
         return self.db.scalar(consulta) or 0
+
+    def listar_activos_de_secciones(self, seccion_ids: list[int]) -> list[Producto]:
+        """Productos activos de varias secciones en una sola consulta (HU-03b)."""
+        if not seccion_ids:
+            return []
+        consulta = select(Producto).where(
+            Producto.activo, Producto.seccion_id.in_(seccion_ids)
+        )
+        return list(self.db.scalars(consulta))

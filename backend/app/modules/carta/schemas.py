@@ -107,3 +107,31 @@ class StockIn(BaseModel):
     """`null` = dejar de controlar el stock del producto."""
 
     stock: int | None = Field(ge=0)
+
+
+# --- Ver carta (HU-03b) ---
+
+
+class ProductoCartaOut(BaseModel):
+    """Producto tal como lo ve el mozo. `disponible` = disponibilidad efectiva."""
+
+    id: int
+    nombre: str
+    descripcion: str | None
+    precio: Decimal
+    tipo: TipoProducto
+    porcion_gramos: int | None
+    volumen_ml: int | None
+    alcoholica: bool | None
+    disponible: bool
+
+
+class SeccionCartaOut(BaseModel):
+    id: int
+    nombre: str
+    orden: int
+    productos: list[ProductoCartaOut]
+
+
+class CartaOut(BaseModel):
+    secciones: list[SeccionCartaOut]

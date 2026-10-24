@@ -7,11 +7,12 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import require_roles
+from app.core.deps import get_current_user, require_roles
 from app.core.enums import Rol, TipoProducto
 from app.modules.carta.schemas import (
     BebidaCreate,
     BebidaUpdate,
+    CartaOut,
     DisponibilidadIn,
     PlatoCreate,
     PlatoUpdate,
@@ -23,10 +24,26 @@ from app.modules.carta.schemas import (
     SeccionUpdate,
     StockIn,
 )
-from app.modules.carta.service import ProductoService, SeccionService
+from app.modules.carta.service import CartaService, ProductoService, SeccionService
 
 router = APIRouter()
 solo_admin = [Depends(require_roles(Rol.ADMINISTRADOR))]
+con_sesion = [Depends(get_current_user)]
+
+
+# --- Ver carta (HU-03b) ---
+
+
+@router.get(
+    "",
+    response_model=CartaOut,
+    dependencies=con_sesion,
+    summary="Ver la carta (secciones con sus productos)",
+)
+def ver_carta(
+    seccion_id: int | None = Query(default=None), db: Session = Depends(get_db)
+):
+    return CartaService(db).ver_carta(seccion_id)
 
 
 # --- Secciones (HU-03a) ---
