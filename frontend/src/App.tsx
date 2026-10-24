@@ -4,6 +4,7 @@ import { LoginPage } from './auth/LoginPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
 import { RequiereRol } from './auth/RequiereRol'
 import { CartaLayout } from './features/carta/CartaLayout'
+import { ProductosPage } from './features/carta/ProductosPage'
 import { SeccionesPage } from './features/carta/SeccionesPage'
 import { MozosPage } from './features/mozos/MozosPage'
 import { MesasPage } from './features/salon/MesasPage'
@@ -32,6 +33,14 @@ export default function App() {
               element={
                 <RequiereRol roles={[Rol.ADMINISTRADOR]} redirigirA="/carta">
                   <SeccionesPage />
+                </RequiereRol>
+              }
+            />
+            <Route
+              path="productos"
+              element={
+                <RequiereRol roles={[Rol.ADMINISTRADOR]} redirigirA="/carta">
+                  <ProductosPage />
                 </RequiereRol>
               }
             />
