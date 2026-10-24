@@ -81,3 +81,8 @@ export function aDatosApi(tipo: TipoProducto, datos: FormularioProducto): Produc
   }
   return base
 }
+
+/** Valida el stock escrito (HU-04d CA5). Devuelve el mensaje de error o null. */
+export function validarStock(valor: string): string | null {
+  return /^\d+$/.test(valor.trim()) ? null : 'El stock debe ser un número entero mayor o igual a 0'
+}

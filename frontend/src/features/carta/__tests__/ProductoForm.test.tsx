@@ -91,6 +91,7 @@ describe('ProductoForm', () => {
       alcoholica: null,
       disponible: true,
       stock: null,
+      disponible_efectivo: true,
     })
     expect(screen.getByLabelText('Nombre')).toHaveValue('Ravioles')
     expect(screen.getByRole('radio', { name: /Postre/ })).toBeDisabled()

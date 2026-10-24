@@ -23,6 +23,8 @@ export interface Producto {
   alcoholica: boolean | null
   disponible: boolean
   stock: number | null
+  /** Disponible, activo y con stock si lo controla (HU-04d). */
+  disponible_efectivo: boolean
 }
 
 /** Datos que se envían al crear o modificar un producto (PlatoCreate, ...). */

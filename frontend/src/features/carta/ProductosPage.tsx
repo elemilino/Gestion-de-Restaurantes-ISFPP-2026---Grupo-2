@@ -7,9 +7,11 @@ import { Button } from '../../components/Button'
 import { FilterChip } from '../../components/FilterChip'
 import { Icon } from '../../components/Icon'
 import { Modal } from '../../components/Modal'
+import { StatusBadge } from '../../components/StatusBadge'
 import { formatMoneda } from '../../lib/format'
-import { eliminarProducto, listarProductos, listarSecciones } from './api'
+import { cambiarDisponibilidad, eliminarProducto, listarProductos, listarSecciones } from './api'
 import { ProductoForm } from './ProductoForm'
+import { StockModal } from './StockModal'
 import { TIPOS_PRODUCTO } from './tiposProducto'
 import type { Producto, Seccion, TipoProducto } from './types'
 
@@ -35,6 +37,11 @@ export function ProductosPage() {
   const [aEliminar, setAEliminar] = useState<Producto | null>(null)
   const [errorBaja, setErrorBaja] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
+
+  // Stock y disponibilidad (HU-04d)
+  const [editandoStock, setEditandoStock] = useState<Producto | null>(null)
+  const [cambiando, setCambiando] = useState<number | null>(null)
+  const [errorAccion, setErrorAccion] = useState<string | null>(null)
 
   async function recargar() {
     try {
@@ -73,6 +80,29 @@ export function ProductosPage() {
       (filtroSeccion === null || p.seccion_id === filtroSeccion),
   )
 
+  function reemplazar(actualizado: Producto) {
+    setProductos((lista) => lista.map((p) => (p.id === actualizado.id ? actualizado : p)))
+  }
+
+  async function alternarDisponible(producto: Producto) {
+    setErrorAccion(null)
+    setCambiando(producto.id)
+    try {
+      reemplazar(await cambiarDisponibilidad(producto.id, !producto.disponible))
+    } catch (e) {
+      // Si falla, la fila queda como estaba.
+      setErrorAccion(mensajeDe(e))
+    } finally {
+      setCambiando(null)
+    }
+  }
+
+  function alGuardarStock(actualizado: Producto) {
+    setEditandoStock(null)
+    reemplazar(actualizado)
+  }
+
+  const cerrarStock = useCallback(() => setEditandoStock(null), [])
   const cerrarForm = useCallback(() => setForm(null), [])
   const cerrarBaja = useCallback(() => setAEliminar(null), [])
 
@@ -157,6 +187,7 @@ export function ProductosPage() {
           </Alert>
         )}
         {errorCarga && <Alert tono="error">{errorCarga}</Alert>}
+        {errorAccion && <Alert tono="error">{errorAccion}</Alert>}
       </div>
 
       <div className="bg-white rounded-2xl border border-borde shadow-xs overflow-hidden">
@@ -180,6 +211,8 @@ export function ProductosPage() {
                   <th className="py-3 px-4">Tipo</th>
                   <th className="py-3 px-4">Sección</th>
                   <th className="py-3 px-4 text-right">Precio</th>
+                  <th className="py-3 px-4">Stock</th>
+                  <th className="py-3 px-4">Disponible</th>
                   <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
@@ -212,7 +245,49 @@ export function ProductosPage() {
                       {formatMoneda(p.precio)}
                     </td>
                     <td className="py-3 px-4">
+                      {p.stock === null ? (
+                        <span className="text-xs text-slate-400">Sin control</span>
+                      ) : p.stock === 0 ? (
+                        <span className="inline-flex">
+                          <StatusBadge tono="ocupado">Agotado</StatusBadge>
+                        </span>
+                      ) : (
+                        <span className="tabular font-semibold text-slate-700">{p.stock}</span>
+                      )}
+                    </td>
+                    <td className="py-3 px-4">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={p.disponible}
+                        aria-label={`${p.nombre} disponible`}
+                        title={
+                          p.disponible ? 'Marcar como no disponible' : 'Marcar como disponible'
+                        }
+                        disabled={cambiando === p.id}
+                        onClick={() => alternarDisponible(p)}
+                        className={`relative w-10 h-6 rounded-full transition-colors disabled:opacity-50 ${
+                          p.disponible ? 'bg-status-free' : 'bg-stone-300'
+                        }`}
+                      >
+                        <span
+                          className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${
+                            p.disponible ? 'translate-x-4' : ''
+                          }`}
+                        />
+                      </button>
+                    </td>
+                    <td className="py-3 px-4">
                       <div className="flex items-center justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setEditandoStock(p)}
+                          aria-label={`Stock de ${p.nombre}`}
+                          title="Stock"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-brand-700 hover:bg-amber-100/70 transition-colors"
+                        >
+                          <Icon name="inventory_2" className="text-base" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => setForm(p)}
@@ -248,6 +323,10 @@ export function ProductosPage() {
           onCerrar={cerrarForm}
           onGuardado={alGuardar}
         />
+      )}
+
+      {editandoStock && (
+        <StockModal producto={editandoStock} onCerrar={cerrarStock} onGuardado={alGuardarStock} />
       )}
 
       <Modal

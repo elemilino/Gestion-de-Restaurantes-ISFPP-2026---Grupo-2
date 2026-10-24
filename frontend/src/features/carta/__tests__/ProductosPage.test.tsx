@@ -1,9 +1,15 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../../api/client'
-import { eliminarProducto, listarProductos, listarSecciones } from '../api'
+import {
+  cambiarDisponibilidad,
+  cambiarStock,
+  eliminarProducto,
+  listarProductos,
+  listarSecciones,
+} from '../api'
 import { ProductosPage } from '../ProductosPage'
 import type { Producto, Seccion } from '../types'
 
@@ -27,6 +33,7 @@ function producto(datos: Partial<Producto>): Producto {
     alcoholica: null,
     disponible: true,
     stock: null,
+    disponible_efectivo: true,
     ...datos,
   }
 }
@@ -49,6 +56,8 @@ describe('ProductosPage', () => {
     vi.mocked(listarProductos).mockReset().mockResolvedValue(PRODUCTOS)
     vi.mocked(listarSecciones).mockReset().mockResolvedValue(SECCIONES)
     vi.mocked(eliminarProducto).mockReset()
+    vi.mocked(cambiarDisponibilidad).mockReset()
+    vi.mocked(cambiarStock).mockReset()
   })
 
   it('lista los productos con su sección y el precio formateado', async () => {
@@ -107,5 +116,73 @@ describe('ProductosPage', () => {
     renderPagina()
     expect(await screen.findByText('Gaseosa · 350 ml')).toBeInTheDocument()
     expect(screen.getByText('Gaseosa · 1500 ml')).toBeInTheDocument()
+  })
+
+  describe('stock y disponibilidad (HU-04d)', () => {
+    const CON_STOCK = [
+      producto({ id: 1, nombre: 'Ñoquis con salsa', stock: null }),
+      producto({ id: 2, nombre: 'Flan casero', stock: 10 }),
+      producto({ id: 3, nombre: 'Bife de chorizo', stock: 0, disponible_efectivo: false }),
+    ]
+
+    function fila(nombre: string) {
+      return screen.getByText(nombre).closest('tr')!
+    }
+
+    it('muestra "Sin control", el número o "Agotado" según el stock', async () => {
+      vi.mocked(listarProductos).mockResolvedValue(CON_STOCK)
+      renderPagina()
+      await screen.findByText('Ñoquis con salsa')
+      expect(fila('Ñoquis con salsa')).toHaveTextContent('Sin control')
+      expect(fila('Flan casero')).toHaveTextContent('10')
+      expect(fila('Bife de chorizo')).toHaveTextContent('Agotado')
+    })
+
+    it('el interruptor llama a cambiarDisponibilidad y actualiza la fila', async () => {
+      vi.mocked(listarProductos).mockResolvedValue(CON_STOCK)
+      vi.mocked(cambiarDisponibilidad).mockResolvedValue({ ...CON_STOCK[1], disponible: false })
+      renderPagina()
+      const interruptor = await screen.findByRole('switch', { name: 'Flan casero disponible' })
+      expect(interruptor).toHaveAttribute('aria-checked', 'true')
+      fireEvent.click(interruptor)
+      expect(cambiarDisponibilidad).toHaveBeenCalledWith(2, false)
+      await waitFor(() => expect(interruptor).toHaveAttribute('aria-checked', 'false'))
+    })
+
+    it('si el interruptor falla muestra el error y deja el valor anterior', async () => {
+      vi.mocked(listarProductos).mockResolvedValue(CON_STOCK)
+      vi.mocked(cambiarDisponibilidad).mockRejectedValue(
+        new ApiError(404, 'El producto no existe', 'PRODUCTO_NO_ENCONTRADO'),
+      )
+      renderPagina()
+      const interruptor = await screen.findByRole('switch', { name: 'Flan casero disponible' })
+      fireEvent.click(interruptor)
+      expect(await screen.findByText('El producto no existe')).toBeInTheDocument()
+      expect(interruptor).toHaveAttribute('aria-checked', 'true')
+    })
+
+    it.each(['-1', '2.5'])('el modal de stock rechaza %s (CA5)', async (valor) => {
+      vi.mocked(listarProductos).mockResolvedValue(CON_STOCK)
+      renderPagina()
+      fireEvent.click(await screen.findByLabelText('Stock de Flan casero'))
+      fireEvent.change(screen.getByLabelText('Unidades en stock'), { target: { value: valor } })
+      fireEvent.click(screen.getByText('Guardar'))
+      expect(
+        screen.getByText('El stock debe ser un número entero mayor o igual a 0'),
+      ).toBeInTheDocument()
+      expect(cambiarStock).not.toHaveBeenCalled()
+    })
+
+    it('el modal guarda el stock o lo deja sin control', async () => {
+      vi.mocked(listarProductos).mockResolvedValue(CON_STOCK)
+      vi.mocked(cambiarStock).mockResolvedValue({ ...CON_STOCK[1], stock: null })
+      renderPagina()
+      fireEvent.click(await screen.findByLabelText('Stock de Flan casero'))
+      expect(screen.getByLabelText('Unidades en stock')).toHaveValue(10)
+      fireEvent.click(screen.getByLabelText('No controlar stock'))
+      fireEvent.click(screen.getByText('Guardar'))
+      expect(cambiarStock).toHaveBeenCalledWith(2, null)
+      await waitFor(() => expect(fila('Flan casero')).toHaveTextContent('Sin control'))
+    })
   })
 })

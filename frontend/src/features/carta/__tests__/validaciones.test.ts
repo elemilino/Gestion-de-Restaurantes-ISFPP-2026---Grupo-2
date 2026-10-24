@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { aDatosApi, FORMULARIO_VACIO, validarProducto } from '../validaciones'
+import { aDatosApi, FORMULARIO_VACIO, validarProducto, validarStock } from '../validaciones'
 
 const PLATO_VALIDO = {
   ...FORMULARIO_VACIO,
@@ -140,5 +140,15 @@ describe('validarProducto: bebida', () => {
 
   it('el plato no exige volumen', () => {
     expect(validarProducto('PLATO', { ...BEBIDA_VALIDA, volumen_ml: '' })).toEqual({})
+  })
+})
+
+describe('validarStock (HU-04d CA5)', () => {
+  it.each(['0', '5', '120'])('acepta %s', (valor) => {
+    expect(validarStock(valor)).toBeNull()
+  })
+
+  it.each(['', '-1', '2.5', 'abc'])('rechaza "%s"', (valor) => {
+    expect(validarStock(valor)).toBe('El stock debe ser un número entero mayor o igual a 0')
   })
 })

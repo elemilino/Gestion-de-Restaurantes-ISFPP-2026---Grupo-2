@@ -1,4 +1,4 @@
-import { apiDelete, apiGet, apiPost, apiPut } from '../../api/client'
+import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../../api/client'
 import type { FiltrosProductos, Producto, ProductoDatos, Seccion } from './types'
 
 // --- Secciones (HU-03a) ---
@@ -45,3 +45,11 @@ export const crearBebida = (datos: ProductoDatos) => apiPost<Producto>('/carta/b
 
 export const modificarBebida = (id: number, datos: ProductoDatos) =>
   apiPut<Producto>(`/carta/bebidas/${id}`, datos)
+
+// --- Stock y disponibilidad (HU-04d) ---
+
+export const cambiarDisponibilidad = (id: number, disponible: boolean) =>
+  apiPatch<Producto>(`/carta/productos/${id}/disponibilidad`, { disponible })
+
+export const cambiarStock = (id: number, stock: number | null) =>
+  apiPatch<Producto>(`/carta/productos/${id}/stock`, { stock })
