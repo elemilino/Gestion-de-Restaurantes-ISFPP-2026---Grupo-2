@@ -128,6 +128,18 @@ def seed_carta(db) -> None:
     # HU-04b: postres
     producto(TipoProducto.POSTRE, "Flan casero", "3000", "Postres")
     producto(TipoProducto.POSTRE, "Panqueque con dulce de leche", "3500", "Postres")
+
+    # HU-04c: bebidas
+    sin_alcohol = "Bebidas sin alcohol"
+    bebida = TipoProducto.BEBIDA
+    producto(
+        bebida, "Cerveza tirada", "4000", "Cervezas", volumen_ml=500, alcoholica=True
+    )
+    producto(
+        bebida, "Agua mineral", "1500", sin_alcohol, volumen_ml=500, alcoholica=False
+    )
+    producto(bebida, "Gaseosa", "1800", sin_alcohol, volumen_ml=350, alcoholica=False)
+    producto(bebida, "Gaseosa", "3500", sin_alcohol, volumen_ml=1500, alcoholica=False)
     db.flush()
 
 
