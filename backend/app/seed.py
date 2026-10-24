@@ -124,6 +124,10 @@ def seed_carta(db) -> None:
         "Bien argentino",
         porcion_gramos=400,
     )
+
+    # HU-04b: postres
+    producto(TipoProducto.POSTRE, "Flan casero", "3000", "Postres")
+    producto(TipoProducto.POSTRE, "Panqueque con dulce de leche", "3500", "Postres")
     db.flush()
 
 
