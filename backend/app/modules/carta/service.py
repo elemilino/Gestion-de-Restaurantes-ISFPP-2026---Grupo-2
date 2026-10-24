@@ -91,6 +91,7 @@ class SeccionService:
 # Mensaje de duplicado de cada tipo de producto (HU-04a/b/c CA2).
 MENSAJE_DUPLICADO = {
     TipoProducto.PLATO: "Ya existe un plato con ese nombre",
+    TipoProducto.POSTRE: "Ya existe un postre con ese nombre",
 }
 
 

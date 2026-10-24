@@ -49,12 +49,26 @@ class ProductoBase(BaseModel):
         return valor or None
 
 
-class PlatoCreate(ProductoBase):
+class ProductoConPorcion(ProductoBase):
+    """Plato y postre: datos comunes + porción en gramos (opcional)."""
+
     porcion_gramos: int | None = Field(default=None, gt=0)
 
 
-class PlatoUpdate(PlatoCreate):
+class PlatoCreate(ProductoConPorcion):
+    pass
+
+
+class PlatoUpdate(ProductoConPorcion):
     """El PUT reemplaza todos los datos editables del plato."""
+
+
+class PostreCreate(ProductoConPorcion):
+    pass
+
+
+class PostreUpdate(ProductoConPorcion):
+    """El PUT reemplaza todos los datos editables del postre."""
 
 
 class ProductoOut(BaseModel):

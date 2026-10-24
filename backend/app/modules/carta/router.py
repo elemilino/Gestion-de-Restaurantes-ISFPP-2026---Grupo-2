@@ -12,6 +12,8 @@ from app.core.enums import Rol, TipoProducto
 from app.modules.carta.schemas import (
     PlatoCreate,
     PlatoUpdate,
+    PostreCreate,
+    PostreUpdate,
     ProductoOut,
     SeccionCreate,
     SeccionOut,
@@ -130,3 +132,29 @@ def modificar_plato(
     producto_id: int, datos: PlatoUpdate, db: Session = Depends(get_db)
 ):
     return ProductoService(db).modificar(producto_id, TipoProducto.PLATO, datos)
+
+
+# --- Postres (HU-04b) ---
+
+
+@router.post(
+    "/postres",
+    response_model=ProductoOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=solo_admin,
+    summary="Crear postre",
+)
+def crear_postre(datos: PostreCreate, db: Session = Depends(get_db)):
+    return ProductoService(db).crear(TipoProducto.POSTRE, datos)
+
+
+@router.put(
+    "/postres/{producto_id}",
+    response_model=ProductoOut,
+    dependencies=solo_admin,
+    summary="Modificar postre",
+)
+def modificar_postre(
+    producto_id: int, datos: PostreUpdate, db: Session = Depends(get_db)
+):
+    return ProductoService(db).modificar(producto_id, TipoProducto.POSTRE, datos)
