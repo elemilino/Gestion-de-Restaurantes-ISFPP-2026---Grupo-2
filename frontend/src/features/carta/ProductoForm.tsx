@@ -6,7 +6,7 @@ import { Button } from '../../components/Button'
 import { CLASE_INPUT, Field } from '../../components/Field'
 import { Icon } from '../../components/Icon'
 import { Modal } from '../../components/Modal'
-import { crearPlato, modificarPlato } from './api'
+import { crearPlato, crearPostre, modificarPlato, modificarPostre } from './api'
 import { TIPOS_PRODUCTO } from './tiposProducto'
 import type { Producto, ProductoDatos, Seccion, TipoProducto } from './types'
 import {
@@ -30,6 +30,7 @@ interface ConfigTipo {
  */
 const CONFIG_TIPOS: Partial<Record<TipoProducto, ConfigTipo>> = {
   PLATO: { campos: ['porcion_gramos'], crear: crearPlato, modificar: modificarPlato },
+  POSTRE: { campos: ['porcion_gramos'], crear: crearPostre, modificar: modificarPostre },
 }
 
 const TIPOS_HABILITADOS = Object.keys(CONFIG_TIPOS) as TipoProducto[]

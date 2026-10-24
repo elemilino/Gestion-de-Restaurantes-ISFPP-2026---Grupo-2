@@ -31,3 +31,10 @@ export const crearPlato = (datos: ProductoDatos) => apiPost<Producto>('/carta/pl
 
 export const modificarPlato = (id: number, datos: ProductoDatos) =>
   apiPut<Producto>(`/carta/platos/${id}`, datos)
+
+// --- Postres (HU-04b) ---
+
+export const crearPostre = (datos: ProductoDatos) => apiPost<Producto>('/carta/postres', datos)
+
+export const modificarPostre = (id: number, datos: ProductoDatos) =>
+  apiPut<Producto>(`/carta/postres/${id}`, datos)

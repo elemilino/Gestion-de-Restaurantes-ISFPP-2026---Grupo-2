@@ -68,3 +68,37 @@ describe('validarProducto: plato', () => {
     })
   })
 })
+
+describe('validarProducto: postre', () => {
+  const POSTRE_VALIDO = {
+    ...FORMULARIO_VACIO,
+    nombre: 'Flan casero',
+    precio: '3000',
+    seccion_id: '5',
+  }
+
+  it('acepta un postre válido, con o sin porción', () => {
+    expect(validarProducto('POSTRE', POSTRE_VALIDO)).toEqual({})
+    expect(validarProducto('POSTRE', { ...POSTRE_VALIDO, porcion_gramos: '120' })).toEqual({})
+  })
+
+  it('usa las mismas reglas que el plato', () => {
+    const errores = validarProducto('POSTRE', {
+      ...POSTRE_VALIDO,
+      precio: '0',
+      seccion_id: '',
+      porcion_gramos: '1.5',
+    })
+    expect(errores).toEqual({
+      precio: 'El precio debe ser mayor a 0',
+      seccion_id: 'Elegí una sección',
+      porcion_gramos: 'La porción debe ser un número entero mayor a 0',
+    })
+  })
+
+  it('envía la porción del postre', () => {
+    expect(aDatosApi('POSTRE', { ...POSTRE_VALIDO, porcion_gramos: '120' })).toMatchObject({
+      porcion_gramos: 120,
+    })
+  })
+})

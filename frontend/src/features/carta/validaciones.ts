@@ -22,7 +22,7 @@ export const FORMULARIO_VACIO: FormularioProducto = {
 const ENTERO_POSITIVO = /^[1-9]\d*$/
 
 /** Tipos que tienen porción en gramos. */
-const CON_PORCION: TipoProducto[] = ['PLATO']
+const CON_PORCION: TipoProducto[] = ['PLATO', 'POSTRE']
 
 /**
  * Valida el formulario con las mismas reglas que el backend (HU-04a CA3).

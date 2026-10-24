@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../../api/client'
-import { crearPlato, modificarPlato } from '../api'
+import { crearPlato, crearPostre, modificarPlato } from '../api'
 import { ProductoForm } from '../ProductoForm'
 import type { Producto, Seccion } from '../types'
 
@@ -30,6 +30,7 @@ function completar(campo: string, valor: string) {
 describe('ProductoForm', () => {
   beforeEach(() => {
     vi.mocked(crearPlato).mockReset()
+    vi.mocked(crearPostre).mockReset()
     vi.mocked(modificarPlato).mockReset()
   })
 
@@ -95,5 +96,22 @@ describe('ProductoForm', () => {
     await vi.waitFor(() =>
       expect(modificarPlato).toHaveBeenCalledWith(3, expect.objectContaining({ precio: '4800' })),
     )
+  })
+
+  it('al elegir Postre muestra la porción y llama a crearPostre (HU-04b)', async () => {
+    vi.mocked(crearPostre).mockResolvedValue({} as Producto)
+    const onGuardado = renderForm()
+    fireEvent.click(screen.getByRole('radio', { name: /Postre/ }))
+    expect(screen.getByRole('radio', { name: /Postre/ })).toHaveAttribute('aria-checked', 'true')
+    completar('Nombre', 'Flan casero')
+    completar('Precio ($)', '3000')
+    completar('Sección', '7')
+    completar('Porción en gramos (opcional)', '120')
+    fireEvent.click(screen.getByText('Guardar'))
+    await vi.waitFor(() => expect(onGuardado).toHaveBeenCalled())
+    expect(crearPostre).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre: 'Flan casero', porcion_gramos: 120 }),
+    )
+    expect(crearPlato).not.toHaveBeenCalled()
   })
 })
