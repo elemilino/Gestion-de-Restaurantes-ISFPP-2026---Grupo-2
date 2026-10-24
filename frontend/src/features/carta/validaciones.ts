@@ -7,6 +7,8 @@ export interface FormularioProducto {
   precio: string
   seccion_id: string
   porcion_gramos: string
+  volumen_ml: string
+  alcoholica: boolean
 }
 
 export type ErroresProducto = Partial<Record<keyof FormularioProducto, string>>
@@ -17,6 +19,8 @@ export const FORMULARIO_VACIO: FormularioProducto = {
   precio: '',
   seccion_id: '',
   porcion_gramos: '',
+  volumen_ml: '',
+  alcoholica: false,
 }
 
 const ENTERO_POSITIVO = /^[1-9]\d*$/
@@ -53,6 +57,9 @@ export function validarProducto(tipo: TipoProducto, datos: FormularioProducto): 
       errores.porcion_gramos = 'La porción debe ser un número entero mayor a 0'
     }
   }
+  if (tipo === 'BEBIDA' && !ENTERO_POSITIVO.test(datos.volumen_ml.trim())) {
+    errores.volumen_ml = 'El volumen debe ser un número entero mayor a 0'
+  }
   return errores
 }
 
@@ -67,6 +74,10 @@ export function aDatosApi(tipo: TipoProducto, datos: FormularioProducto): Produc
   if (CON_PORCION.includes(tipo)) {
     const porcion = datos.porcion_gramos.trim()
     base.porcion_gramos = porcion === '' ? null : Number(porcion)
+  }
+  if (tipo === 'BEBIDA') {
+    base.volumen_ml = Number(datos.volumen_ml)
+    base.alcoholica = datos.alcoholica
   }
   return base
 }

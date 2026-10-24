@@ -102,3 +102,43 @@ describe('validarProducto: postre', () => {
     })
   })
 })
+
+describe('validarProducto: bebida', () => {
+  const BEBIDA_VALIDA = {
+    ...FORMULARIO_VACIO,
+    nombre: 'Cerveza tirada',
+    precio: '4000',
+    seccion_id: '6',
+    volumen_ml: '500',
+    alcoholica: true,
+  }
+
+  it('acepta una bebida válida', () => {
+    expect(validarProducto('BEBIDA', BEBIDA_VALIDA)).toEqual({})
+  })
+
+  it.each(['', '0', '-1', '2.5', 'abc'])('rechaza el volumen "%s"', (volumen_ml) => {
+    expect(validarProducto('BEBIDA', { ...BEBIDA_VALIDA, volumen_ml }).volumen_ml).toBe(
+      'El volumen debe ser un número entero mayor a 0',
+    )
+  })
+
+  it('no valida la porción en bebidas', () => {
+    expect(validarProducto('BEBIDA', { ...BEBIDA_VALIDA, porcion_gramos: 'x' })).toEqual({})
+  })
+
+  it('envía volumen y alcohólica, sin porción', () => {
+    expect(aDatosApi('BEBIDA', { ...BEBIDA_VALIDA, porcion_gramos: '100' })).toEqual({
+      nombre: 'Cerveza tirada',
+      descripcion: null,
+      precio: '4000',
+      seccion_id: 6,
+      volumen_ml: 500,
+      alcoholica: true,
+    })
+  })
+
+  it('el plato no exige volumen', () => {
+    expect(validarProducto('PLATO', { ...BEBIDA_VALIDA, volumen_ml: '' })).toEqual({})
+  })
+})

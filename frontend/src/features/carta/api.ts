@@ -38,3 +38,10 @@ export const crearPostre = (datos: ProductoDatos) => apiPost<Producto>('/carta/p
 
 export const modificarPostre = (id: number, datos: ProductoDatos) =>
   apiPut<Producto>(`/carta/postres/${id}`, datos)
+
+// --- Bebidas (HU-04c) ---
+
+export const crearBebida = (datos: ProductoDatos) => apiPost<Producto>('/carta/bebidas', datos)
+
+export const modificarBebida = (id: number, datos: ProductoDatos) =>
+  apiPut<Producto>(`/carta/bebidas/${id}`, datos)

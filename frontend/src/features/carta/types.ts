@@ -19,6 +19,8 @@ export interface Producto {
   tipo: TipoProducto
   seccion_id: number
   porcion_gramos: number | null
+  volumen_ml: number | null
+  alcoholica: boolean | null
   disponible: boolean
   stock: number | null
 }
@@ -30,6 +32,8 @@ export interface ProductoDatos {
   precio: string
   seccion_id: number
   porcion_gramos?: number | null
+  volumen_ml?: number
+  alcoholica?: boolean
 }
 
 export interface FiltrosProductos {

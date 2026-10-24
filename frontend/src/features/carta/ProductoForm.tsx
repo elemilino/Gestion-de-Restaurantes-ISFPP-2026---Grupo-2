@@ -6,7 +6,14 @@ import { Button } from '../../components/Button'
 import { CLASE_INPUT, Field } from '../../components/Field'
 import { Icon } from '../../components/Icon'
 import { Modal } from '../../components/Modal'
-import { crearPlato, crearPostre, modificarPlato, modificarPostre } from './api'
+import {
+  crearBebida,
+  crearPlato,
+  crearPostre,
+  modificarBebida,
+  modificarPlato,
+  modificarPostre,
+} from './api'
 import { TIPOS_PRODUCTO } from './tiposProducto'
 import type { Producto, ProductoDatos, Seccion, TipoProducto } from './types'
 import {
@@ -31,6 +38,11 @@ interface ConfigTipo {
 const CONFIG_TIPOS: Partial<Record<TipoProducto, ConfigTipo>> = {
   PLATO: { campos: ['porcion_gramos'], crear: crearPlato, modificar: modificarPlato },
   POSTRE: { campos: ['porcion_gramos'], crear: crearPostre, modificar: modificarPostre },
+  BEBIDA: {
+    campos: ['volumen_ml', 'alcoholica'],
+    crear: crearBebida,
+    modificar: modificarBebida,
+  },
 }
 
 const TIPOS_HABILITADOS = Object.keys(CONFIG_TIPOS) as TipoProducto[]
@@ -42,6 +54,8 @@ function desdeProducto(p: Producto): FormularioProducto {
     precio: String(Number(p.precio)),
     seccion_id: String(p.seccion_id),
     porcion_gramos: p.porcion_gramos?.toString() ?? '',
+    volumen_ml: p.volumen_ml?.toString() ?? '',
+    alcoholica: p.alcoholica ?? false,
   }
 }
 
@@ -69,7 +83,7 @@ export function ProductoForm({ producto, secciones, onCerrar, onGuardado }: Prod
   const config = CONFIG_TIPOS[tipo]
   const tieneCampo = (campo: keyof FormularioProducto) => config?.campos.includes(campo) ?? false
 
-  function cambiar(campo: keyof FormularioProducto, valor: string) {
+  function cambiar(campo: keyof FormularioProducto, valor: string | boolean) {
     setDatos((anteriores) => ({ ...anteriores, [campo]: valor }))
   }
 
@@ -223,6 +237,35 @@ export function ProductoForm({ producto, secciones, onCerrar, onGuardado }: Prod
               className={`${CLASE_INPUT} tabular`}
             />
           </Field>
+        )}
+
+        {tieneCampo('volumen_ml') && (
+          <div className="grid grid-cols-2 gap-3 items-start">
+            <Field label="Volumen (ml)" htmlFor="producto-volumen" error={errores.volumen_ml}>
+              <input
+                id="producto-volumen"
+                type="number"
+                min={1}
+                step={1}
+                value={datos.volumen_ml}
+                onChange={(e) => cambiar('volumen_ml', e.target.value)}
+                placeholder="Ej. 500"
+                aria-invalid={invalido('volumen_ml')}
+                className={`${CLASE_INPUT} tabular`}
+              />
+            </Field>
+            {tieneCampo('alcoholica') && (
+              <label className="mt-6 h-12 px-3 rounded-xl border border-borde flex items-center gap-2 text-sm text-slate-700 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={datos.alcoholica}
+                  onChange={(e) => cambiar('alcoholica', e.target.checked)}
+                  className="w-4 h-4 accent-brand-600"
+                />
+                ¿Es alcohólica?
+              </label>
+            )}
+          </div>
         )}
       </form>
     </Modal>

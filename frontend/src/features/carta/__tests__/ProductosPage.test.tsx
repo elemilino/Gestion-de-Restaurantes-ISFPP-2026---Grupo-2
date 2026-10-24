@@ -23,6 +23,8 @@ function producto(datos: Partial<Producto>): Producto {
     tipo: 'PLATO',
     seccion_id: 1,
     porcion_gramos: 350,
+    volumen_ml: null,
+    alcoholica: null,
     disponible: true,
     stock: null,
     ...datos,
@@ -95,5 +97,15 @@ describe('ProductosPage', () => {
     expect(
       await screen.findByText('No se puede eliminar Ñoquis con salsa: está en 2 comandas abiertas'),
     ).toBeInTheDocument()
+  })
+
+  it('muestra el volumen junto al nombre de las bebidas (HU-04c)', async () => {
+    vi.mocked(listarProductos).mockResolvedValue([
+      producto({ id: 5, nombre: 'Gaseosa', tipo: 'BEBIDA', volumen_ml: 350, alcoholica: false }),
+      producto({ id: 6, nombre: 'Gaseosa', tipo: 'BEBIDA', volumen_ml: 1500, alcoholica: false }),
+    ])
+    renderPagina()
+    expect(await screen.findByText('Gaseosa · 350 ml')).toBeInTheDocument()
+    expect(screen.getByText('Gaseosa · 1500 ml')).toBeInTheDocument()
   })
 })

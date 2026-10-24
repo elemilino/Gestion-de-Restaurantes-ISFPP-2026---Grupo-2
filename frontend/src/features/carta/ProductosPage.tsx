@@ -187,7 +187,9 @@ export function ProductosPage() {
                 {visibles.map((p) => (
                   <tr key={p.id} className="hover:bg-amber-50/30 transition-colors">
                     <td className="py-3 px-4">
-                      <span className="font-semibold text-slate-900">{p.nombre}</span>
+                      <span className="font-semibold text-slate-900">
+                        {p.volumen_ml ? `${p.nombre} · ${p.volumen_ml} ml` : p.nombre}
+                      </span>
                       {p.descripcion && (
                         <span className="block text-xs text-slate-500 truncate max-w-xs">
                           {p.descripcion}

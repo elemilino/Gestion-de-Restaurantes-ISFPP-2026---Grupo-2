@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from '../../../api/client'
-import { crearPlato, crearPostre, modificarPlato } from '../api'
+import { crearBebida, crearPlato, crearPostre, modificarPlato } from '../api'
 import { ProductoForm } from '../ProductoForm'
 import type { Producto, Seccion } from '../types'
 
@@ -31,6 +31,7 @@ describe('ProductoForm', () => {
   beforeEach(() => {
     vi.mocked(crearPlato).mockReset()
     vi.mocked(crearPostre).mockReset()
+    vi.mocked(crearBebida).mockReset()
     vi.mocked(modificarPlato).mockReset()
   })
 
@@ -86,6 +87,8 @@ describe('ProductoForm', () => {
       tipo: 'PLATO',
       seccion_id: 7,
       porcion_gramos: null,
+      volumen_ml: null,
+      alcoholica: null,
       disponible: true,
       stock: null,
     })
@@ -113,5 +116,30 @@ describe('ProductoForm', () => {
       expect.objectContaining({ nombre: 'Flan casero', porcion_gramos: 120 }),
     )
     expect(crearPlato).not.toHaveBeenCalled()
+  })
+
+  it('al elegir Bebida muestra volumen y alcohólica en lugar de la porción (HU-04c)', async () => {
+    vi.mocked(crearBebida).mockResolvedValue({} as Producto)
+    const onGuardado = renderForm()
+    expect(screen.getByLabelText('Porción en gramos (opcional)')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: /Bebida/ }))
+    expect(screen.queryByLabelText('Porción en gramos (opcional)')).not.toBeInTheDocument()
+    completar('Nombre', 'Cerveza tirada')
+    completar('Precio ($)', '4000')
+    completar('Sección', '7')
+    fireEvent.click(screen.getByText('Guardar'))
+    expect(screen.getByText('El volumen debe ser un número entero mayor a 0')).toBeInTheDocument()
+    completar('Volumen (ml)', '500')
+    fireEvent.click(screen.getByLabelText('¿Es alcohólica?'))
+    fireEvent.click(screen.getByText('Guardar'))
+    await vi.waitFor(() => expect(onGuardado).toHaveBeenCalled())
+    expect(crearBebida).toHaveBeenCalledWith({
+      nombre: 'Cerveza tirada',
+      descripcion: null,
+      precio: '4000',
+      seccion_id: 7,
+      volumen_ml: 500,
+      alcoholica: true,
+    })
   })
 })
