@@ -133,3 +133,18 @@ Las crea su HU, en un archivo nuevo de `app/models/` (y se importan en `app/mode
 3. Los cambios a tablas que usan otros (sobre todo `mesa`, `mozo`, `producto`, `comanda`) se
    hacen **en un commit aparte y avisando al grupo**, porque al integrar todos tienen que recrear
    su base.
+4. Anotar el cambio en la tabla de abajo, para que el grupo sepa que tiene que correr el seed.
+
+## Cambios del modelo que requieren seed
+
+Después de bajar (o mergear) cualquiera de estos cambios, cada uno tiene que correr
+`python -m app.seed` en `backend/` con el entorno activado. Borra los datos de prueba.
+
+| Rama | HU | Tabla | Cambio |
+|---|---|---|---|
+| `feat/gestion-mozos` | HU-02 | `mozo`, `usuario` | Teléfono, sector asignado y vínculo con `Usuario`. |
+| `feat/gestion-carta` | HU-04a | `producto` | `nombre` pasa a 60 caracteres; columnas nuevas `descripcion`, `porcion_gramos`, `disponible` y `stock`. |
+| `feat/gestion-carta` | HU-04c | `producto` | Columnas nuevas `volumen_ml` y `alcoholica`. |
+
+`feat/gestion-carta` también agrega datos de ejemplo de la carta (`seed_carta`): 7 secciones,
+platos, postres y bebidas.
