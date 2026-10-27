@@ -104,13 +104,18 @@ python -m app.seed                    # por si cambió el modelo (borra los dato
 npm install                           # por si alguien agregó una dependencia
 ```
 
+> **El seed es obligatorio si cambió algo en `backend/app/models/`.** No hay migraciones: sin
+> recrear la base, el backend falla con `no such column`. Los cambios de modelo que lo requieren
+> están en [docs/modelo-datos.md](docs/modelo-datos.md#cambios-del-modelo-que-requieren-seed).
+> Ojo: `python -m app.seed` se corre **con el entorno activado** (el prompt muestra `(.venv)`).
+
 ## Problemas comunes
 
 | Síntoma | Solución |
 |---|---|
 | El login dice "No se pudo conectar con el servidor". | El backend no está corriendo (terminal 1). |
 | Error del backend del tipo `no such column` o `no such table`. | Cambió el modelo: correr `python -m app.seed`. |
-| `ModuleNotFoundError` al levantar el backend. | El entorno no está activado o falta `pip install -r requirements-dev.txt`. |
+| `ModuleNotFoundError` (ej. `No module named 'sqlalchemy'`) al levantar el backend o correr el seed. | El entorno no está activado (`source .venv/bin/activate`) o falta `pip install -r requirements-dev.txt`. |
 | `python: command not found`. | Usar `python3` (Linux/Mac) o `py` (Windows). |
 | El puerto 8000 o 5173 está ocupado. | Quedó otro servidor abierto: cerrarlo. |
 

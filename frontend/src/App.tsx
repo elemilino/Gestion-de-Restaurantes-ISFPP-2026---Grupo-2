@@ -2,11 +2,17 @@ import { Navigate, Route, Routes } from 'react-router'
 
 import { LoginPage } from './auth/LoginPage'
 import { ProtectedRoute } from './auth/ProtectedRoute'
+import { RequiereRol } from './auth/RequiereRol'
+import { CartaLayout } from './features/carta/CartaLayout'
+import { ProductosPage } from './features/carta/ProductosPage'
+import { SeccionesPage } from './features/carta/SeccionesPage'
+import { VerCartaPage } from './features/carta/VerCartaPage'
 import { MozosPage } from './features/mozos/MozosPage'
 import { MesasPage } from './features/salon/MesasPage'
 import { AppLayout } from './layout/AppLayout'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PendientePage } from './pages/PendientePage'
+import { Rol } from './lib/roles'
 
 /**
  * Rutas de la aplicación. Cada HU reemplaza el <PendientePage /> de su ruta por su
@@ -21,7 +27,25 @@ export default function App() {
         <Route element={<AppLayout />}>
           <Route index element={<Navigate to="/mesas" replace />} />
           <Route path="/mesas" element={<MesasPage />} />
-          <Route path="/carta" element={<PendientePage />} />
+          <Route path="/carta" element={<CartaLayout />}>
+            <Route index element={<VerCartaPage />} />
+            <Route
+              path="secciones"
+              element={
+                <RequiereRol roles={[Rol.ADMINISTRADOR]} redirigirA="/carta">
+                  <SeccionesPage />
+                </RequiereRol>
+              }
+            />
+            <Route
+              path="productos"
+              element={
+                <RequiereRol roles={[Rol.ADMINISTRADOR]} redirigirA="/carta">
+                  <ProductosPage />
+                </RequiereRol>
+              }
+            />
+          </Route>
           <Route path="/reservas" element={<PendientePage />} />
           <Route path="/clientes" element={<PendientePage />} />
           <Route path="/caja" element={<PendientePage />} />
