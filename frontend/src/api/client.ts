@@ -57,4 +57,7 @@ export const apiPost = <T>(ruta: string, datos?: unknown) =>
 export const apiPut = <T>(ruta: string, datos?: unknown) =>
   request<T>(ruta, { method: 'PUT', body: JSON.stringify(datos) })
 
+export const apiPatch = <T>(ruta: string, datos?: unknown) =>
+  request<T>(ruta, { method: 'PATCH', body: JSON.stringify(datos) })
+
 export const apiDelete = <T = void>(ruta: string) => request<T>(ruta, { method: 'DELETE' })
