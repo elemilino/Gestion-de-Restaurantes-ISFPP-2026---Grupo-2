@@ -73,7 +73,11 @@ class ComandaService:
         )
         if existente is None:
             comanda.detalles.append(
-                DetalleComanda(producto=producto, cantidad=datos.cantidad)
+                DetalleComanda(
+                    producto=producto,
+                    cantidad=datos.cantidad,
+                    precio_unitario=producto.precio,
+                )
             )
         else:
             existente.cantidad += datos.cantidad
@@ -218,11 +222,8 @@ class ComandaService:
 
     @staticmethod
     def _validar_sector(mesas: list[Mesa], mozo: Mozo) -> None:
-        # TODO: Mozo.sector_id lo agrega HU-02. Hasta entonces no se puede validar.
-        sector_mozo = getattr(mozo, "sector_id", None)
-        if sector_mozo is None:
-            return
-        ajenas = sorted(m.numero for m in mesas if m.sector_id != sector_mozo)
+        #
+        ajenas = sorted(m.numero for m in mesas if m.sector_id != mozo.sector_id)
         if ajenas:
             raise BusinessRuleError(
                 f"Las mesas {ajenas} no están asignadas al mozo",

@@ -32,11 +32,17 @@ def sector(db):
     db.commit()
     return sector
 
-
+# Asignarle al mozo el mismo sector que usan las mesas.
 @pytest.fixture
-def crear_mozo(db):
+def crear_mozo(db, sector):
     def _crear(dni=DNI, activo=True) -> Mozo:
-        mozo = Mozo(dni=dni, nombre="Juan", apellido="Pérez", activo=activo)
+        mozo = Mozo(
+            dni=dni,
+            nombre="Juan",
+            apellido="Pérez",
+            activo=activo,
+            sector_id=sector.id,
+        )
         db.add(mozo)
         db.commit()
         return mozo
@@ -432,6 +438,17 @@ def test_hu05b_ca8_no_se_puede_quitar_un_producto_entregado(
     assert r.status_code == 409
     assert r.json()["code"] == "DETALLE_ENTREGADO"
     assert len(db.get(Comanda, comanda_id).detalles) == 1
+
+
+def test_hu05b_el_precio_queda_congelado_al_agregar(
+    db, client, comanda_id, crear_producto
+):
+    producto = crear_producto(precio="1500.00")
+    _agregar(client, comanda_id, producto.id)
+    producto.precio = Decimal("2000.00")
+    db.commit()
+    detalle = db.get(Comanda, comanda_id).detalles[0]
+    assert detalle.precio_unitario == Decimal("1500.00")
 
 
 # ----- LGIN

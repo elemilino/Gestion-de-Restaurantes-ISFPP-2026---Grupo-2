@@ -1,12 +1,16 @@
-"""Comanda y DetalleComanda (mínimo). Los completan HU-05a a HU-05f y HU-06.
-
-`DetalleComanda.precio_unitario` guarda el precio del producto al momento de
-cargarlo, para que un cambio de precio no afecte comandas abiertas (HU-04a CA5).
-"""
+# Comanda y DetalleComanda (mínimo). Los completan HU-05a a HU-05f y HU-06
 
 from datetime import datetime
+from decimal import Decimal
 
-from sqlalchemy import CheckConstraint, Column, ForeignKey, Table, UniqueConstraint
+from sqlalchemy import (
+    CheckConstraint,
+    Column,
+    ForeignKey,
+    Numeric,
+    Table,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -58,6 +62,7 @@ class DetalleComanda(Base):
     comanda_id: Mapped[int] = mapped_column(ForeignKey("comanda.id"))
     producto_id: Mapped[int] = mapped_column(ForeignKey("producto.id"))
     cantidad: Mapped[int] = mapped_column(default=1)
+    precio_unitario: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     entregado: Mapped[bool] = mapped_column(default=False)
 
     comanda: Mapped[Comanda] = relationship(back_populates="detalles")
