@@ -7,7 +7,7 @@ Cubre:
 - Permisos por rol (solo administrador gestiona mozos).
 """
 
-from app.core.enums import EstadoComanda, Rol
+from app.core.enums import Rol
 from app.models.comandas import Comanda
 from app.models.personal import Mozo
 from app.models.salon import Mesa, Sector
@@ -234,7 +234,7 @@ def test_hu02_ca3_rechaza_baja_si_mozo_tiene_comandas_abiertas(
     db.flush()
 
     # Comanda activa
-    comanda = Comanda(mesa_id=mesa.id, mozo_id=mozo.id, estado=EstadoComanda.ABIERTA)
+    comanda = Comanda(mozo_id=mozo.id, cantidad_comensales=1, mesas=[mesa])
     db.add(comanda)
     db.commit()
 
@@ -276,7 +276,7 @@ def test_hu02_ca3_permite_baja_luego_de_cerrar_o_reasignar_comandas(
     db.add_all([m1, m2])
     db.flush()
 
-    comanda = Comanda(mesa_id=mesa.id, mozo_id=m1.id, estado=EstadoComanda.ABIERTA)
+    comanda = Comanda(mozo_id=m1.id, cantidad_comensales=1, mesas=[mesa])
     db.add(comanda)
     db.commit()
 

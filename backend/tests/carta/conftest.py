@@ -1,11 +1,12 @@
 """Fixtures del módulo carta: crean secciones, productos y comandas directo con `db`."""
 
+from datetime import datetime
 from decimal import Decimal
 from itertools import count
 
 import pytest
 
-from app.core.enums import EstadoComanda, TipoProducto
+from app.core.enums import TipoProducto
 from app.models.carta import Producto, SeccionCarta
 from app.models.comandas import Comanda, DetalleComanda
 from app.models.personal import Mozo
@@ -71,7 +72,7 @@ def crear_comanda_con(db):
     def _crear(
         producto: Producto,
         precio_unitario: str = "1000",
-        estado: EstadoComanda = EstadoComanda.ABIERTA,
+        cerrada: bool = False,
         cantidad: int = 1,
     ) -> DetalleComanda:
         n = next(numeros)
@@ -82,7 +83,12 @@ def crear_comanda_con(db):
         mozo = Mozo(dni=f"{n:08d}", nombre="Mozo", apellido=f"Prueba {n}")
         db.add_all([mesa, mozo])
         db.flush()
-        comanda = Comanda(mesa_id=mesa.id, mozo_id=mozo.id, estado=estado)
+        comanda = Comanda(
+            mozo_id=mozo.id,
+            cantidad_comensales=1,
+            mesas=[mesa],
+            fecha_hora_cierre=datetime.now() if cerrada else None,
+        )
         db.add(comanda)
         db.flush()
         detalle = DetalleComanda(

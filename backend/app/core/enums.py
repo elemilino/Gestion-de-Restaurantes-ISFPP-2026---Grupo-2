@@ -16,12 +16,3 @@ class TipoProducto(StrEnum):
     PLATO = "PLATO"
     POSTRE = "POSTRE"
     BEBIDA = "BEBIDA"
-
-
-class EstadoComanda(StrEnum):
-    """Estados de la comanda definidos en HU-05."""
-
-    ABIERTA = "ABIERTA"
-    CERRADA = "CERRADA"
-    FACTURADA = "FACTURADA"
-    ANULADA = "ANULADA"

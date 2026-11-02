@@ -4,7 +4,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.core.enums import EstadoComanda, Rol, TipoProducto
+from app.core.enums import Rol, TipoProducto
 from app.models.carta import Producto
 from app.models.comandas import DetalleComanda
 
@@ -191,7 +191,7 @@ def test_hu04a_ca7_elimina_plato(
 ):
     pastas = crear_seccion("Pastas")
     plato = crear_producto("Ñoquis con salsa", pastas)
-    detalle = crear_comanda_con(plato, estado=EstadoComanda.FACTURADA)
+    detalle = crear_comanda_con(plato, cerrada=True)
 
     r = client.delete(f"{URL_PRODUCTOS}/{plato.id}", headers=headers())
     assert r.status_code == 204
@@ -225,7 +225,7 @@ def test_hu04a_ca8_comanda_facturada_no_bloquea(
 ):
     pastas = crear_seccion("Pastas")
     plato = crear_producto("Ñoquis con salsa", pastas)
-    crear_comanda_con(plato, estado=EstadoComanda.FACTURADA)
+    crear_comanda_con(plato, cerrada=True)
     r = client.delete(f"{URL_PRODUCTOS}/{plato.id}", headers=headers())
     assert r.status_code == 204
 
