@@ -244,3 +244,65 @@ def test_hu10_recepcionista_puede_gestionar_clientes(client, headers):
         == 200
     )
     assert client.delete(f"{URL}/{cliente_id}", headers=h).status_code == 204
+
+
+@pytest.mark.parametrize(
+    "campo,valor",
+    [
+        ("nombre", "Juan123"),
+        ("nombre", "Juan Pérez 2"),
+        ("apellido", "Pérez1"),
+        ("apellido", "Gómez@"),
+    ],
+)
+def test_hu10_ca2_rechaza_numeros_y_simbolos_en_nombre_y_apellido(
+    client, headers, campo, valor
+):
+    h = headers(Rol.RECEPCIONISTA)
+
+    r = client.post(URL, json=payload(**{campo: valor}), headers=h)
+
+    assert r.status_code == 422
+    mensajes = [error["msg"] for error in r.json()["detail"]]
+    assert any("solo puede contener letras" in mensaje for mensaje in mensajes)
+
+
+@pytest.mark.parametrize("campo,valor", [("nombre", "Laura2"), ("apellido", "Gómez1")])
+def test_hu10_ca4_rechaza_numeros_al_modificar(client, headers, campo, valor):
+    h = headers(Rol.RECEPCIONISTA)
+    cliente_id = client.post(URL, json=payload(), headers=h).json()["id"]
+
+    r = client.put(f"{URL}/{cliente_id}", json={campo: valor}, headers=h)
+
+    assert r.status_code == 422
+    mensajes = [error["msg"] for error in r.json()["detail"]]
+    assert any("solo puede contener letras" in mensaje for mensaje in mensajes)
+
+
+def test_hu10_ca1_acepta_nombres_compuestos_y_unicode(client, headers):
+    h = headers(Rol.RECEPCIONISTA)
+
+    r = client.post(
+        URL,
+        json=payload(nombre="María José", apellido="O'Connor-Pérez"),
+        headers=h,
+    )
+
+    assert r.status_code == 201
+    assert r.json()["nombre"] == "María José"
+    assert r.json()["apellido"] == "O'Connor-Pérez"
+
+
+def test_hu10_ca4_acepta_nombres_compuestos_y_unicode(client, headers):
+    h = headers(Rol.RECEPCIONISTA)
+    cliente_id = client.post(URL, json=payload(), headers=h).json()["id"]
+
+    r = client.put(
+        f"{URL}/{cliente_id}",
+        json={"nombre": "Ñandú", "apellido": "de la Cruz"},
+        headers=h,
+    )
+
+    assert r.status_code == 200
+    assert r.json()["nombre"] == "Ñandú"
+    assert r.json()["apellido"] == "de la Cruz"
