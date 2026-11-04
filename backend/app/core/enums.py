@@ -10,6 +10,7 @@ from enum import StrEnum
 class Rol(StrEnum):
     ADMINISTRADOR = "ADMINISTRADOR"
     MOZO = "MOZO"
+    CAJERO = "CAJERO"
 
 
 class TipoProducto(StrEnum):
@@ -25,3 +26,26 @@ class EstadoComanda(StrEnum):
     CERRADA = "CERRADA"
     FACTURADA = "FACTURADA"
     ANULADA = "ANULADA"
+
+
+class TipoAcreditacion(StrEnum):
+    """Tipos de acreditación para medios de pago (HU-07)."""
+
+    INMEDIATA = "Inmediata"
+    DIFERIDA = "Diferida"
+
+
+class EstadoFactura(StrEnum):
+    """Estados de la factura (HU-08)."""
+
+    ADEUDADA = "Adeudada"
+    PAGADA = "Pagada"
+
+
+class TipoFactura(StrEnum):
+    """Tipos de comprobante fiscal (HU-08)."""
+
+    A = "A"
+    B = "B"
+    C = "C"
+    CONSUMIDOR_FINAL = "Consumidor Final"
