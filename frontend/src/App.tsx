@@ -7,6 +7,7 @@ import { CartaLayout } from './features/carta/CartaLayout'
 import { ProductosPage } from './features/carta/ProductosPage'
 import { SeccionesPage } from './features/carta/SeccionesPage'
 import { VerCartaPage } from './features/carta/VerCartaPage'
+import { ClientesPage } from './features/clientes/ClientesPage'
 import { MozosPage } from './features/mozos/MozosPage'
 import { MesasPage } from './features/salon/MesasPage'
 import { AppLayout } from './layout/AppLayout'
@@ -47,7 +48,14 @@ export default function App() {
             />
           </Route>
           <Route path="/reservas" element={<PendientePage />} />
-          <Route path="/clientes" element={<PendientePage />} />
+          <Route
+            path="/clientes"
+            element={
+              <RequiereRol roles={[Rol.ADMINISTRADOR, Rol.RECEPCIONISTA]} redirigirA="/mesas">
+                <ClientesPage />
+              </RequiereRol>
+            }
+          />
           <Route path="/caja" element={<PendientePage />} />
           <Route path="/historial" element={<PendientePage />} />
           <Route path="/reportes" element={<PendientePage />} />
