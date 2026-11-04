@@ -80,8 +80,9 @@ classDiagram
 | Tabla (archivo) | Columnas en la base | HU dueña | Lo que agrega la HU (según las HU finales) |
 |---|---|---|---|
 | `usuario` (`usuario.py`) | id, username (único), password_hash, nombre, rol, activo | base | HU-02 decide si se vincula con Mozo. |
-| `sector` (`salon.py`) | id, nombre, activo | HU-01a | descripción; nombre único entre activos. |
-| `mesa` (`salon.py`) | id, numero, capacidad, sector_id, activo | HU-01b | número único entre activas; capacidad > 0; bloqueos por reserva o comanda. |
+| `sector` (`salon.py`) | id, nombre, descripcion, activo | HU-01a | Hecho: descripción (≤ 200); nombre único entre activos (sin distinguir mayúsculas). |
+| `mesa` (`salon.py`) | id, numero, capacidad, sector_id, activo | HU-01b | Hecho: número único entre activas; capacidad > 0; bloqueos por reserva activa o comanda abierta. |
+| `reserva`, `reserva_mesa` (`reservas.py`) | id, fecha_hora, cantidad_comensales, estado (ACTIVA por defecto); N:M con `mesa` | HU-11a | **Mínima**, creada por HU-01b para sus bloqueos. HU-11a agrega cliente, menú acordado y define los estados finales. |
 | `mozo` (`personal.py`) | id, dni (único), nombre, apellido, activo | HU-02 | teléfono, turno, sector asignado. |
 | `seccion_carta` (`carta.py`) | id, nombre, orden, activo | HU-03a | validaciones de nombre (3 a 50, único entre activas) y orden. |
 | `producto` (`carta.py`) | id, nombre (60), descripcion, precio, tipo, seccion_id, porcion_gramos, volumen_ml, alcoholica, disponible, stock, activo | HU-04a–d | HU-04a: descripción (≤ 200), porción en gramos (plato/postre), disponible y stock (lógica en HU-04d). HU-04c: volumen en ml y alcohólica (bebida). |
@@ -106,6 +107,7 @@ Notas:
 | `Rol` | `ADMINISTRADOR`, `MOZO` | Cada HU agrega su rol: `CAJERO` (HU-08), `RECEPCIONISTA` (HU-10/11), `ENCARGADO_GENERAL` (HU-09), `COCINERO` (HU-09b). Copiarlo también en `frontend/src/lib/roles.ts`. |
 | `TipoProducto` | `PLATO`, `POSTRE`, `BEBIDA` | |
 | `EstadoComanda` | `ABIERTA`, `CERRADA`, `FACTURADA`, `ANULADA` | Definidos por HU-05 (decisión del grupo). |
+| `EstadoReserva` | `ACTIVA`, `CANCELADA`, `FINALIZADA` | Provisorios (HU-01b solo usa `ACTIVA`). Los define HU-11a. |
 
 Se guardan como texto en la base (`native_enum=False`), así que agregar un valor nuevo no requiere
 cambiar la tabla.
@@ -117,7 +119,6 @@ Las crea su HU, en un archivo nuevo de `app/models/` (y se importan en `app/mode
 | Entidad | HU |
 |---|---|
 | Cliente | HU-10 |
-| Reserva (y su relación N:M con Mesa) | HU-11a |
 | Menú (ejecutivo / del día) | HU-09b |
 | Promoción | HU-09a |
 | PreTicket | HU-05c |
@@ -145,6 +146,8 @@ Después de bajar (o mergear) cualquiera de estos cambios, cada uno tiene que co
 | `feat/gestion-mozos` | HU-02 | `mozo`, `usuario` | Teléfono, sector asignado y vínculo con `Usuario`. |
 | `feat/gestion-carta` | HU-04a | `producto` | `nombre` pasa a 60 caracteres; columnas nuevas `descripcion`, `porcion_gramos`, `disponible` y `stock`. |
 | `feat/gestion-carta` | HU-04c | `producto` | Columnas nuevas `volumen_ml` y `alcoholica`. |
+| `feat/gestion-salon` | HU-01a | `sector` | Columna nueva `descripcion`. |
+| `feat/gestion-salon` | HU-01b | `reserva`, `reserva_mesa` | Tablas nuevas (Reserva mínima) y enumerado `EstadoReserva`. |
 
 `feat/gestion-carta` también agrega datos de ejemplo de la carta (`seed_carta`): 7 secciones,
 platos, postres y bebidas.
