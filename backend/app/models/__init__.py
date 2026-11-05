@@ -9,6 +9,7 @@ from app.models.comandas import Comanda, DetalleComanda
 from app.models.facturacion import DetallePago, Factura
 from app.models.medios_pago import MedioPago
 from app.models.personal import Mozo
+from app.models.reservas import Reserva
 from app.models.salon import Mesa, Sector
 from app.models.usuario import Usuario
 
@@ -22,6 +23,7 @@ __all__ = [
     "Mesa",
     "Mozo",
     "Producto",
+    "Reserva",
     "SeccionCarta",
     "Sector",
     "Usuario",

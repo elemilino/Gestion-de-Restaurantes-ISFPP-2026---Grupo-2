@@ -7,6 +7,7 @@ Cada HU puede agregar sus datos de ejemplo en una función `seed_<modulo>(db)` y
 llamarla desde `main()`.
 """
 
+from datetime import datetime
 from decimal import Decimal
 
 from app import models  # noqa: F401  (registra las tablas para create_all)
@@ -16,6 +17,7 @@ from app.core.security import hashear_password
 from app.models.carta import Producto, SeccionCarta
 from app.models.medios_pago import MedioPago
 from app.models.personal import Mozo
+from app.models.reservas import Reserva
 from app.models.salon import Mesa, Sector
 from app.models.usuario import Usuario
 
@@ -43,10 +45,18 @@ def seed_usuarios(db) -> dict[str, Usuario]:
     return usuarios
 
 
+SECTORES = [
+    ("Salón Principal", "Planta baja, junto a la barra"),
+    ("Terraza", "Primer piso, al aire libre"),
+    ("Patio", None),
+]
+
+
 def seed_salon(db) -> dict[str, Sector]:
+    """Sectores y mesas de ejemplo (HU-01a, HU-01b)."""
     sectores = {}
-    for nombre in ["Salón Principal", "Terraza", "Patio"]:
-        s = Sector(nombre=nombre, activo=True)
+    for nombre, descripcion in SECTORES:
+        s = Sector(nombre=nombre, descripcion=descripcion, activo=True)
         db.add(s)
         sectores[nombre] = s
     db.flush()
@@ -61,6 +71,12 @@ def seed_salon(db) -> dict[str, Sector]:
     m3 = Mesa(numero=3, capacidad=6, sector_id=sectores["Terraza"].id, activo=True)
     m4 = Mesa(numero=4, capacidad=4, sector_id=sectores["Patio"].id, activo=True)
     db.add_all([m1, m2, m3, m4])
+    db.flush()
+
+    # Reserva activa para hoy: la mesa 3 aparece Reservada, no se puede eliminar
+    # ni bajar su capacidad a menos de 5 (HU-01b CA5 y CA7).
+    hoy_21 = datetime.now().replace(hour=21, minute=0, second=0, microsecond=0)
+    db.add(Reserva(fecha_hora=hoy_21, cantidad_comensales=5, mesas=[m3]))
     db.flush()
     return sectores
 
@@ -197,6 +213,7 @@ def main() -> None:
         db.commit()
     print("Base recreada. Usuarios: admin / mozo / cajero (contraseña: 1234)")
     print("Sectores y mesas creados con mozo asignado a Salón Principal.")
+    print("Reserva de ejemplo para hoy en la mesa 3.")
     print("Carta de ejemplo cargada.")
     print("Medios de pago cargados.")
 
