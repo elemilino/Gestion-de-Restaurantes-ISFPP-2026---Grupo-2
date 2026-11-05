@@ -23,6 +23,7 @@ USUARIOS = [
     ("admin", "Administrador", Rol.ADMINISTRADOR),
     ("mozo", "Mozo de prueba", Rol.MOZO),
     ("cajero", "Cajero de prueba", Rol.CAJERO),
+    ("recepcion", "Recepcionista de prueba", Rol.RECEPCIONISTA),
 ]
 PASSWORD_DESARROLLO = "1234"
 

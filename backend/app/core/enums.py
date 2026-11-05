@@ -11,6 +11,7 @@ class Rol(StrEnum):
     ADMINISTRADOR = "ADMINISTRADOR"
     MOZO = "MOZO"
     CAJERO = "CAJERO"
+    RECEPCIONISTA = "RECEPCIONISTA"
 
 
 class TipoProducto(StrEnum):
