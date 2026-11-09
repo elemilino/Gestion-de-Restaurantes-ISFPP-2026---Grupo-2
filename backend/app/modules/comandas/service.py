@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 
+from app.core.enums import EstadoComanda
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
 from app.models.comandas import Comanda, DetalleComanda
 from app.models.personal import Mozo
@@ -118,7 +119,7 @@ class ComandaService:
     def cerrar(self, comanda_id: int) -> Comanda:
         """HU-05c: cierra la comanda registrando la fecha y hora de cierre."""
         comanda = self._buscar_comanda(comanda_id)
-        if not comanda.abierta:
+        if comanda.estado != EstadoComanda.ABIERTA:
             raise ConflictError("La comanda ya está cerrada", "COMANDA_YA_CERRADA")
         if not comanda.detalles:
             raise BusinessRuleError(
@@ -131,6 +132,7 @@ class ComandaService:
                 f"entrega: {', '.join(pendientes)}",
                 "PRODUCTOS_PENDIENTES",
             )
+        comanda.estado = EstadoComanda.CERRADA
         comanda.fecha_hora_cierre = datetime.now()
         return self.comandas.guardar(comanda)
 
@@ -139,13 +141,16 @@ class ComandaService:
     def reabrir(self, comanda_id: int) -> Comanda:
         """HU-05d: vuelve a abrir una comanda cerrada y no facturada."""
         comanda = self._buscar_comanda(comanda_id)
-        # TODO: HU-08a agrega Comanda.factura (relación `tiene_una`).
-        if getattr(comanda, "factura", None) is not None:
+        if (
+            comanda.estado == EstadoComanda.FACTURADA
+            or getattr(comanda, "factura", None) is not None
+        ):
             raise ConflictError(
                 "No se puede reabrir una comanda facturada", "COMANDA_FACTURADA"
             )
-        if comanda.abierta:
+        if comanda.estado == EstadoComanda.ABIERTA:
             raise ConflictError("La comanda ya está abierta", "COMANDA_YA_ABIERTA")
+        comanda.estado = EstadoComanda.ABIERTA
         comanda.fecha_hora_cierre = None
         return self.comandas.guardar(comanda)
 
@@ -154,7 +159,7 @@ class ComandaService:
     def eliminar(self, comanda_id: int) -> None:
         """HU-05e: elimina físicamente una comanda abierta sin entregas."""
         comanda = self._buscar_comanda(comanda_id)
-        if not comanda.abierta:
+        if comanda.estado != EstadoComanda.ABIERTA:
             raise ConflictError(
                 "No se puede eliminar una comanda cerrada", "COMANDA_CERRADA"
             )
@@ -176,12 +181,14 @@ class ComandaService:
 
     def _comanda_modificable(self, comanda_id: int) -> Comanda:
         comanda = self._buscar_comanda(comanda_id)
-        # TODO: HU-08a agrega Comanda.factura (relación `tiene_una`).
-        if getattr(comanda, "factura", None) is not None:
+        if (
+            comanda.estado == EstadoComanda.FACTURADA
+            or getattr(comanda, "factura", None) is not None
+        ):
             raise ConflictError(
                 "No es posible modificar una comanda facturada", "COMANDA_FACTURADA"
             )
-        if not comanda.abierta:
+        if comanda.estado != EstadoComanda.ABIERTA:
             raise ConflictError(
                 "No es posible modificar una comanda cerrada", "COMANDA_CERRADA"
             )

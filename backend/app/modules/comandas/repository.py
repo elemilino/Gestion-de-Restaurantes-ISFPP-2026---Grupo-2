@@ -2,6 +2,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from datetime import date, datetime, time
+from app.core.enums import EstadoComanda
 from app.models.comandas import Comanda, comanda_mesa
 from app.models.personal import Mozo
 from app.models.salon import Mesa
@@ -28,7 +29,7 @@ class ComandaRepository:
             .join(Comanda, Comanda.id == comanda_mesa.c.comanda_id)
             .where(
                 Mesa.id.in_([m.id for m in mesas]),
-                Comanda.fecha_hora_cierre.is_(None),
+                Comanda.estado == EstadoComanda.ABIERTA,
             )
         )
         return sorted(self.db.scalars(consulta))
@@ -72,7 +73,7 @@ class ComandaRepository:
                 Comanda.fecha_hora_apertura <= datetime.combine(hasta, time.max)
             )
         if abierta is True:
-            consulta = consulta.where(Comanda.fecha_hora_cierre.is_(None))
+            consulta = consulta.where(Comanda.estado == EstadoComanda.ABIERTA)
         elif abierta is False:
-            consulta = consulta.where(Comanda.fecha_hora_cierre.is_not(None))
+            consulta = consulta.where(Comanda.estado != EstadoComanda.ABIERTA)
         return list(self.db.scalars(consulta))

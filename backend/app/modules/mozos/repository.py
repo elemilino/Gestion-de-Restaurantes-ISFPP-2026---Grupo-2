@@ -3,6 +3,7 @@
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.enums import EstadoComanda
 from app.models.comandas import Comanda
 from app.models.personal import Mozo
 from app.models.salon import Mesa, Sector
@@ -73,14 +74,14 @@ class MozoRepository:
         """
         consulta = select(func.count(Comanda.id)).where(
             Comanda.mozo_id == mozo_id,
-            Comanda.fecha_hora_cierre.is_(None),
+            Comanda.estado == EstadoComanda.ABIERTA,
         )
         return self.db.scalar(consulta) or 0
 
     def buscar_comandas_activas(self, mozo_id: int) -> list[Comanda]:
         consulta = select(Comanda).where(
             Comanda.mozo_id == mozo_id,
-            Comanda.fecha_hora_cierre.is_(None),
+            Comanda.estado == EstadoComanda.ABIERTA,
         )
         return list(self.db.scalars(consulta))
 

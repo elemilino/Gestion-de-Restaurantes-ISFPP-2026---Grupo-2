@@ -2,9 +2,7 @@ import pytest
 
 from datetime import datetime, timedelta
 from decimal import Decimal
-from app.core.enums import Rol
-
-from app.core.enums import TipoProducto
+from app.core.enums import EstadoComanda, Rol, TipoProducto
 from app.models.carta import Producto, SeccionCarta
 
 from app.models.comandas import Comanda, DetalleComanda, comanda_mesa
@@ -31,6 +29,7 @@ def sector(db):
     db.add(sector)
     db.commit()
     return sector
+
 
 # Asignarle al mozo el mismo sector que usan las mesas.
 @pytest.fixture
@@ -200,7 +199,9 @@ def test_hu05a_mesa_vuelve_a_estar_libre_al_cerrar(db, client, crear_mozo, crear
     crear_mozo()
     crear_mesa(numero=1)
     id_comanda = client.post(URL, json=_datos()).json()["id"]
-    db.get(Comanda, id_comanda).fecha_hora_cierre = datetime.now()
+    comanda = db.get(Comanda, id_comanda)
+    comanda.estado = EstadoComanda.CERRADA
+    comanda.fecha_hora_cierre = datetime.now()
     db.commit()
     assert client.post(URL, json=_datos()).status_code == 201
 
@@ -246,7 +247,9 @@ def _agregar(client, comanda_id, producto_id, cantidad=1):
 
 
 def _cerrar(db, comanda_id):
-    db.get(Comanda, comanda_id).fecha_hora_cierre = datetime.now()
+    comanda = db.get(Comanda, comanda_id)
+    comanda.estado = EstadoComanda.CERRADA
+    comanda.fecha_hora_cierre = datetime.now()
     db.commit()
 
 

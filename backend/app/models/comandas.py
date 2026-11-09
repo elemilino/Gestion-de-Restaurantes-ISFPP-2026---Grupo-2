@@ -6,6 +6,7 @@ from decimal import Decimal
 from sqlalchemy import (
     CheckConstraint,
     Column,
+    Enum,
     ForeignKey,
     Numeric,
     Table,
@@ -14,6 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.enums import EstadoComanda
 from app.models.carta import Producto
 from app.models.personal import Mozo
 from app.models.salon import Mesa
@@ -37,6 +39,10 @@ class Comanda(Base):
     fecha_hora_apertura: Mapped[datetime] = mapped_column(default=datetime.now)
     fecha_hora_cierre: Mapped[datetime | None] = mapped_column(default=None)
     mozo_id: Mapped[int] = mapped_column(ForeignKey("mozo.id"))
+    estado: Mapped[EstadoComanda] = mapped_column(
+        Enum(EstadoComanda, native_enum=False, length=20),
+        default=EstadoComanda.ABIERTA,
+    )
 
     mozo: Mapped[Mozo] = relationship()
     mesas: Mapped[list[Mesa]] = relationship(secondary=comanda_mesa)
@@ -46,7 +52,7 @@ class Comanda(Base):
 
     @property
     def abierta(self) -> bool:
-        return self.fecha_hora_cierre is None
+        return self.estado == EstadoComanda.ABIERTA
 
 
 class DetalleComanda(Base):

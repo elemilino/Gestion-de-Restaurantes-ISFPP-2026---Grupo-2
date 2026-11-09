@@ -10,7 +10,7 @@ import unicodedata
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.core.enums import TipoProducto
+from app.core.enums import EstadoComanda, TipoProducto
 from app.models.carta import Producto, SeccionCarta
 from app.models.comandas import Comanda, DetalleComanda
 
@@ -137,7 +137,7 @@ class ProductoRepository:
             .join(DetalleComanda, DetalleComanda.comanda_id == Comanda.id)
             .where(
                 DetalleComanda.producto_id == producto_id,
-                Comanda.fecha_hora_cierre.is_(None),
+                Comanda.estado == EstadoComanda.ABIERTA,
             )
         )
         return self.db.scalar(consulta) or 0

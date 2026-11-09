@@ -7,9 +7,13 @@ import { CartaLayout } from './features/carta/CartaLayout'
 import { ProductosPage } from './features/carta/ProductosPage'
 import { SeccionesPage } from './features/carta/SeccionesPage'
 import { VerCartaPage } from './features/carta/VerCartaPage'
+import { ClientesPage } from './features/clientes/ClientesPage'
 import { MozosPage } from './features/mozos/MozosPage'
+import { GestionMesasPage } from './features/salon/GestionMesasPage'
 import { MesasPage } from './features/salon/MesasPage'
+import { SectoresPage } from './features/salon/SectoresPage'
 import { AppLayout } from './layout/AppLayout'
+import { ConfiguracionLayout } from './layout/ConfiguracionLayout'
 import { NotFoundPage } from './pages/NotFoundPage'
 import { PendientePage } from './pages/PendientePage'
 import { Rol } from './lib/roles'
@@ -47,12 +51,23 @@ export default function App() {
             />
           </Route>
           <Route path="/reservas" element={<PendientePage />} />
-          <Route path="/clientes" element={<PendientePage />} />
+          <Route
+            path="/clientes"
+            element={
+              <RequiereRol roles={[Rol.ADMINISTRADOR, Rol.RECEPCIONISTA]} redirigirA="/mesas">
+                <ClientesPage />
+              </RequiereRol>
+            }
+          />
           <Route path="/caja" element={<PendientePage />} />
           <Route path="/historial" element={<PendientePage />} />
           <Route path="/reportes" element={<PendientePage />} />
-          <Route path="/configuracion" element={<MozosPage />} />
-          <Route path="/configuracion/mozos" element={<MozosPage />} />
+          <Route path="/configuracion" element={<ConfiguracionLayout />}>
+            <Route index element={<Navigate to="mozos" replace />} />
+            <Route path="mozos" element={<MozosPage />} />
+            <Route path="sectores" element={<SectoresPage />} />
+            <Route path="mesas" element={<GestionMesasPage />} />
+          </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

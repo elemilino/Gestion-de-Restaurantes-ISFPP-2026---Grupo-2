@@ -14,6 +14,7 @@ export interface NavItem {
 
 const TODOS = [Rol.ADMINISTRADOR, Rol.MOZO]
 const ADMIN = [Rol.ADMINISTRADOR]
+const CLIENTES = [Rol.ADMINISTRADOR, Rol.RECEPCIONISTA]
 
 /**
  * Menú lateral (mismo orden que el prototipo de Stitch).
@@ -49,7 +50,7 @@ export const navItems: NavItem[] = [
     ruta: '/clientes',
     etiqueta: 'Clientes',
     icono: 'badge',
-    roles: ADMIN,
+    roles: CLIENTES,
     hu: 'HU-10',
     responsable: 'Gonza',
   },
