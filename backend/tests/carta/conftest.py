@@ -82,7 +82,12 @@ def crear_comanda_con(db):
         mozo = Mozo(dni=f"{n:08d}", nombre="Mozo", apellido=f"Prueba {n}")
         db.add_all([mesa, mozo])
         db.flush()
-        comanda = Comanda(mesa_id=mesa.id, mozo_id=mozo.id, estado=estado)
+        comanda = Comanda(
+            mozo_id=mozo.id,
+            cantidad_comensales=1,
+            mesas=[mesa],
+            estado=estado,
+        )
         db.add(comanda)
         db.flush()
         detalle = DetalleComanda(

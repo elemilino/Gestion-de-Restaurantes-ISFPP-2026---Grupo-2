@@ -175,7 +175,7 @@ class FacturacionService:
             )
 
         comanda = factura.comanda
-        mesa_numero = comanda.mesa.numero if (comanda and comanda.mesa) else None
+        mesa_numero = comanda.mesas[0].numero if (comanda and comanda.mesas) else None
         mozo_nombre = (
             f"{comanda.mozo.nombre} {comanda.mozo.apellido}"
             if (comanda and comanda.mozo)

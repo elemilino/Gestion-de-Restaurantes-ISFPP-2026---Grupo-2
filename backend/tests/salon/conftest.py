@@ -45,7 +45,12 @@ def crear_comanda(db):
         mozo = Mozo(dni=f"{next(dnis):08d}", nombre="Mozo", apellido="Prueba")
         db.add(mozo)
         db.flush()
-        comanda = Comanda(mesa_id=mesa.id, mozo_id=mozo.id, estado=estado)
+        comanda = Comanda(
+            mozo_id=mozo.id,
+            cantidad_comensales=1,
+            mesas=[mesa],
+            estado=estado,
+        )
         db.add(comanda)
         db.commit()
         return comanda

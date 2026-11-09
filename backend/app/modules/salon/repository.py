@@ -11,7 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.core.enums import EstadoComanda, EstadoReserva
-from app.models.comandas import Comanda
+from app.models.comandas import Comanda, comanda_mesa
 from app.models.reservas import Reserva, reserva_mesa
 from app.models.salon import Mesa, Sector
 
@@ -97,16 +97,26 @@ class MesaRepository:
     # varias mesas y `fecha_hora_cierre`), solo hay que cambiar estas dos consultas.
 
     def comandas_abiertas(self, mesa_id: int) -> list[Comanda]:
-        consulta = select(Comanda).where(
-            Comanda.mesa_id == mesa_id, Comanda.estado == EstadoComanda.ABIERTA
+        consulta = (
+            select(Comanda)
+            .join(comanda_mesa, comanda_mesa.c.comanda_id == Comanda.id)
+            .where(
+                comanda_mesa.c.mesa_id == mesa_id,
+                Comanda.estado == EstadoComanda.ABIERTA,
+            )
         )
         return list(self.db.scalars(consulta))
 
     def ids_con_comanda_abierta(self, mesa_ids: list[int]) -> set[int]:
         if not mesa_ids:
             return set()
-        consulta = select(Comanda.mesa_id).where(
-            Comanda.mesa_id.in_(mesa_ids), Comanda.estado == EstadoComanda.ABIERTA
+        consulta = (
+            select(comanda_mesa.c.mesa_id)
+            .join(Comanda, Comanda.id == comanda_mesa.c.comanda_id)
+            .where(
+                comanda_mesa.c.mesa_id.in_(mesa_ids),
+                Comanda.estado == EstadoComanda.ABIERTA,
+            )
         )
         return set(self.db.scalars(consulta))
 

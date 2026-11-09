@@ -103,8 +103,9 @@ def _crear_comanda_con_detalles(
     db, datos_prueba, estado=EstadoComanda.CERRADA, vacia=False
 ) -> Comanda:
     comanda = Comanda(
-        mesa_id=datos_prueba["mesa"].id,
         mozo_id=datos_prueba["mozo"].id,
+        cantidad_comensales=2,
+        mesas=[datos_prueba["mesa"]],
         estado=estado,
     )
     db.add(comanda)

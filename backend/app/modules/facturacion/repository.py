@@ -22,7 +22,7 @@ class FacturacionRepository:
                 selectinload(Factura.comanda)
                 .selectinload(Comanda.detalles)
                 .selectinload(DetalleComanda.producto),
-                selectinload(Factura.comanda).selectinload(Comanda.mesa),
+                selectinload(Factura.comanda).selectinload(Comanda.mesas),
                 selectinload(Factura.comanda).selectinload(Comanda.mozo),
             )
             .where(Factura.id == factura_id)
@@ -51,7 +51,7 @@ class FacturacionRepository:
             select(Comanda)
             .options(
                 selectinload(Comanda.detalles).selectinload(DetalleComanda.producto),
-                selectinload(Comanda.mesa),
+                selectinload(Comanda.mesas),
                 selectinload(Comanda.mozo),
             )
             .where(Comanda.id == comanda_id)
