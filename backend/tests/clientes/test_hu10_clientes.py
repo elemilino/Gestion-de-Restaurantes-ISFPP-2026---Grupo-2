@@ -1,13 +1,16 @@
 """Pruebas del módulo clientes (HU-10).
 
-Cubre CA1 a CA5 y CA7. CA6 (baja bloqueada por reservas activas) se agrega
-cuando HU-11 incorpore el modelo `Reserva`.
+Cubre CA1 a CA7. CA6 (baja bloqueada por reservas activas) usa el modelo
+`Reserva` de HU-11a.
 """
+
+from datetime import datetime, timedelta
 
 import pytest
 
-from app.core.enums import Rol
+from app.core.enums import EstadoReserva, Rol
 from app.models.clientes import Cliente
+from app.models.reservas import Reserva
 
 URL = "/api/v1/clientes"
 
@@ -181,6 +184,41 @@ def test_hu10_ca5_cliente_inexistente(client, headers):
 
     assert r.status_code == 404
     assert r.json()["code"] == "CLIENTE_NO_ENCONTRADO"
+
+
+def test_hu10_ca6_no_elimina_cliente_con_reservas_activas(client, headers, db):
+    h = headers(Rol.RECEPCIONISTA)
+    cliente_id = client.post(URL, json=payload(), headers=h).json()["id"]
+    db.add(
+        Reserva(
+            fecha_hora=datetime.now() + timedelta(days=1),
+            cantidad_comensales=2,
+            cliente_id=cliente_id,
+        )
+    )
+    db.commit()
+
+    r = client.delete(f"{URL}/{cliente_id}", headers=h)
+
+    assert r.status_code == 409
+    assert r.json()["code"] == "CLIENTE_CON_RESERVAS"
+    assert db.get(Cliente, cliente_id).activo is True
+
+
+def test_hu10_ca6_elimina_cliente_con_reservas_cerradas(client, headers, db):
+    h = headers(Rol.RECEPCIONISTA)
+    cliente_id = client.post(URL, json=payload(), headers=h).json()["id"]
+    db.add(
+        Reserva(
+            fecha_hora=datetime.now() - timedelta(days=3),
+            cantidad_comensales=2,
+            cliente_id=cliente_id,
+            estado=EstadoReserva.CUMPLIDA,
+        )
+    )
+    db.commit()
+
+    assert client.delete(f"{URL}/{cliente_id}", headers=h).status_code == 204
 
 
 def test_hu10_ca7_busca_por_dni_nombre_y_apellido(client, headers):
