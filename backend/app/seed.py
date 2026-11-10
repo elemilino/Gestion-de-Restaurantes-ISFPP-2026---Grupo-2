@@ -102,6 +102,7 @@ SECCIONES_CARTA = [
     "Postres",
     "Cervezas",
     "Bebidas sin alcohol",
+    "Menús",
 ]
 
 
@@ -134,7 +135,7 @@ def seed_carta(db) -> None:
         descripcion="Ñoquis de papa con salsa fileto",
         porcion_gramos=350,
     )
-    producto(TipoProducto.PLATO, "Milanesa napolitana", "8500", "Minutas")
+    milanesa = producto(TipoProducto.PLATO, "Milanesa napolitana", "8500", "Minutas")
     producto(TipoProducto.PLATO, "Empanada de carne", "1200", "Entradas")
     bife = producto(
         TipoProducto.PLATO,
@@ -166,6 +167,29 @@ def seed_carta(db) -> None:
     flan.stock = 10
     bife.stock = 0
     panqueque.disponible = False
+    db.flush()
+
+    # HU-09b: menús especiales vigentes esta semana
+    hoy = date.today()
+    producto(
+        TipoProducto.MENU_EJECUTIVO,
+        "Ejecutivo milanesa y flan",
+        "10500",
+        "Menús",
+        plato_id=milanesa.id,
+        postre_id=flan.id,
+        fecha_inicio=hoy,
+        fecha_fin=hoy + timedelta(days=6),
+    )
+    producto(
+        TipoProducto.MENU_DEL_DIA,
+        "Menú del día: bife",
+        "12000",
+        "Menús",
+        plato_id=bife.id,
+        fecha_inicio=hoy,
+        fecha_fin=hoy,
+    )
     db.flush()
 
 

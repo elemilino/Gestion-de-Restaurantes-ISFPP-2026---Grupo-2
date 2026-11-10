@@ -24,6 +24,12 @@ class TipoProducto(StrEnum):
     PLATO = "PLATO"
     POSTRE = "POSTRE"
     BEBIDA = "BEBIDA"
+    # HU-09b: Menu hereda de Producto (diagrama de clases).
+    MENU_EJECUTIVO = "MENU_EJECUTIVO"
+    MENU_DEL_DIA = "MENU_DEL_DIA"
+
+
+TIPOS_MENU = (TipoProducto.MENU_EJECUTIVO, TipoProducto.MENU_DEL_DIA)
 
 
 class EstadoComanda(StrEnum):

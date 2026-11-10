@@ -362,10 +362,17 @@ class ComandaService:
 
     @staticmethod
     def _verificar_disponible(producto: Producto) -> None:
-        """HU-04d CA1: un producto marcado no disponible no se puede cargar."""
+        """HU-04d CA1: un producto marcado no disponible no se puede cargar.
+
+        Un menú especial (HU-09b) solo se carga mientras está vigente.
+        """
         if not producto.disponible:
             raise BusinessRuleError(
                 f"{producto.nombre} no está disponible", "PRODUCTO_NO_DISPONIBLE"
+            )
+        if not producto.vigente:
+            raise BusinessRuleError(
+                f"El menú {producto.nombre} no está vigente", "PRODUCTO_NO_DISPONIBLE"
             )
 
     def _reponer_todo(self, comanda: Comanda) -> None:
