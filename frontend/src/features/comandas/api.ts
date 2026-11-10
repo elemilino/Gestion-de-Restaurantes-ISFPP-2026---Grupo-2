@@ -47,6 +47,12 @@ export const anularComanda = (id: number, motivo: string) =>
 
 export const eliminarComanda = (id: number) => apiDelete(`${BASE}/${id}`)
 
-/** Reservas cumplidas que todavía no tienen comanda (HU-05a CA8). */
-export const reservasPendientes = () =>
-  apiGet<ReservaPendiente[]>('/reservas?estado=CUMPLIDA&sin_comanda=true')
+/** Reservas de hoy, cumplidas y todavía sin comanda (HU-05a CA8). */
+export function reservasPendientes(hoy: Date = new Date()) {
+  const fecha = [
+    hoy.getFullYear(),
+    String(hoy.getMonth() + 1).padStart(2, '0'),
+    String(hoy.getDate()).padStart(2, '0'),
+  ].join('-')
+  return apiGet<ReservaPendiente[]>(`/reservas?estado=CUMPLIDA&sin_comanda=true&fecha=${fecha}`)
+}
