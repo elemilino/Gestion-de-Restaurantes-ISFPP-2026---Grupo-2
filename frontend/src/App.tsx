@@ -53,7 +53,7 @@ export default function App() {
             <Route
               path="promociones"
               element={
-                <RequiereRol roles={[Rol.ADMINISTRADOR]} redirigirA="/carta">
+                <RequiereRol roles={[Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL]} redirigirA="/carta">
                   <PromocionesPage />
                 </RequiereRol>
               }

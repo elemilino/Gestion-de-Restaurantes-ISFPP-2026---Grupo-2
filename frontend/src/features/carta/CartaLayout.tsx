@@ -36,7 +36,7 @@ const PESTANIAS: Pestania[] = [
     ruta: '/carta/promociones',
     etiqueta: 'Promociones',
     icono: 'local_offer',
-    roles: [Rol.ADMINISTRADOR],
+    roles: [Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL],
   },
 ]
 

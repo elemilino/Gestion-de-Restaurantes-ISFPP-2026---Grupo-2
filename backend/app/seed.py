@@ -29,6 +29,8 @@ USUARIOS = [
     ("mozo", "Mozo de prueba", Rol.MOZO),
     ("cajero", "Cajero de prueba", Rol.CAJERO),
     ("recepcion", "Recepcionista de prueba", Rol.RECEPCIONISTA),
+    ("encargado", "Encargado general de prueba", Rol.ENCARGADO_GENERAL),
+    ("cocinero", "Cocinero de prueba", Rol.COCINERO),
 ]
 PASSWORD_DESARROLLO = "1234"
 
@@ -258,7 +260,10 @@ def main() -> None:
         seed_medios_pago(db)
         seed_promociones(db)
         db.commit()
-    print("Base recreada. Usuarios: admin / mozo / cajero (contraseña: 1234)")
+    print(
+        "Base recreada. Usuarios: admin / mozo / cajero / recepcion / encargado / "
+        "cocinero (contraseña: 1234)"
+    )
     print("Sectores y mesas creados con mozo asignado a Salón Principal.")
     print("Reserva de ejemplo para hoy en la mesa 3.")
     print("Carta de ejemplo cargada.")

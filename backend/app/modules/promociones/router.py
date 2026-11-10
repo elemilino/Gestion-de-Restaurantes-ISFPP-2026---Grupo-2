@@ -17,7 +17,8 @@ from app.modules.promociones.schemas import (
 from app.modules.promociones.service import PromocionService
 
 router = APIRouter()
-solo_admin = [Depends(require_roles(Rol.ADMINISTRADOR))]
+# HU-09a: el actor es el encargado general (y el administrador).
+solo_admin = [Depends(require_roles(Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL))]
 
 EstadoFiltro = Literal["todas", "vigentes", "programadas", "vencidas", "inactivas"]
 

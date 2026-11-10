@@ -8,10 +8,16 @@ from enum import StrEnum
 
 
 class Rol(StrEnum):
+    """Lista cerrada de actores (acuerdo del grupo del 04/11)."""
+
     ADMINISTRADOR = "ADMINISTRADOR"
     MOZO = "MOZO"
     CAJERO = "CAJERO"
     RECEPCIONISTA = "RECEPCIONISTA"
+    # HU-09a/b y HU-12a–f (reportes).
+    ENCARGADO_GENERAL = "ENCARGADO_GENERAL"
+    # HU-09b (menús especiales).
+    COCINERO = "COCINERO"
 
 
 class TipoProducto(StrEnum):
