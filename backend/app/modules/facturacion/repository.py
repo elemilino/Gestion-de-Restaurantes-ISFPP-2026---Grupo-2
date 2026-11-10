@@ -3,6 +3,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.enums import EstadoComanda
 from app.models.comandas import Comanda, DetalleComanda
 from app.models.facturacion import DetallePago, Factura
 from app.models.medios_pago import MedioPago
@@ -43,6 +44,21 @@ class FacturacionRepository:
                 selectinload(Factura.comanda),
             )
             .order_by(Factura.fecha.desc())
+        )
+        return list(self.db.scalars(consulta))
+
+    def comandas_por_facturar(self) -> list[Comanda]:
+        """Comandas CERRADAS sin factura, de la más vieja a la más nueva."""
+        consulta = (
+            select(Comanda)
+            .options(
+                selectinload(Comanda.detalles),
+                selectinload(Comanda.mesas),
+                selectinload(Comanda.mozo),
+            )
+            .outerjoin(Factura, Factura.comanda_id == Comanda.id)
+            .where(Comanda.estado == EstadoComanda.CERRADA, Factura.id.is_(None))
+            .order_by(Comanda.fecha_hora_cierre)
         )
         return list(self.db.scalars(consulta))
 

@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.deps import require_roles
 from app.core.enums import Rol
 from app.modules.facturacion.schemas import (
+    ComandaPorFacturar,
     CobroCreate,
     ComprobanteOut,
     FacturaCreate,
@@ -26,6 +27,16 @@ solo_caja = [Depends(require_roles(Rol.ADMINISTRADOR, Rol.CAJERO))]
 )
 def listar_facturas(db: Session = Depends(get_db)):
     return FacturacionService(db).listar_facturas()
+
+
+@router.get(
+    "/comandas-por-facturar",
+    response_model=list[ComandaPorFacturar],
+    dependencies=solo_caja,
+    summary="Comandas cerradas que todavía no tienen factura (HU-08a)",
+)
+def comandas_por_facturar(db: Session = Depends(get_db)):
+    return FacturacionService(db).comandas_por_facturar()
 
 
 @router.get(

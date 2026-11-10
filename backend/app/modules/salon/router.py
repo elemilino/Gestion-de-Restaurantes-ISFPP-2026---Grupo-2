@@ -18,6 +18,11 @@ from app.modules.salon.service import MesaService, SectorService
 
 router = APIRouter()
 solo_admin = [Depends(require_roles(Rol.ADMINISTRADOR))]
+# Lectura para quien arma reservas (HU-11a) y para el filtro del reporte de
+# ocupación (HU-12d). El mozo usa el tablero de mesas de comandas.
+lectura = [
+    Depends(require_roles(Rol.ADMINISTRADOR, Rol.RECEPCIONISTA, Rol.ENCARGADO_GENERAL))
+]
 
 
 # --- Sectores (HU-01a) ---
@@ -26,7 +31,7 @@ solo_admin = [Depends(require_roles(Rol.ADMINISTRADOR))]
 @router.get(
     "/sectores",
     response_model=list[SectorOut],
-    dependencies=solo_admin,
+    dependencies=lectura,
     summary="Listar sectores con su cantidad de mesas",
 )
 def listar_sectores(db: Session = Depends(get_db)):
@@ -72,7 +77,7 @@ def eliminar_sector(sector_id: int, db: Session = Depends(get_db)):
 @router.get(
     "/mesas",
     response_model=list[MesaOut],
-    dependencies=solo_admin,
+    dependencies=lectura,
     summary="Listar mesas con su disponibilidad (opcional: de un sector)",
 )
 def listar_mesas(
