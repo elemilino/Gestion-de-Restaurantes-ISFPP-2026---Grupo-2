@@ -24,6 +24,7 @@ from app.models.salon import Mesa
 
 if TYPE_CHECKING:
     from app.models.facturacion import Factura
+    from app.models.reservas import Reserva
 
 comanda_mesa = Table(
     "comanda_mesa",
@@ -51,6 +52,10 @@ class Comanda(Base):
     motivo_anulacion: Mapped[str | None] = mapped_column(
         String(200), nullable=True, default=None
     )
+    # HU-05a CA8: comanda abierta a partir de una reserva cumplida.
+    reserva_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reserva.id"), unique=True, default=None
+    )
 
     mozo: Mapped[Mozo] = relationship()
     mesas: Mapped[list[Mesa]] = relationship(secondary=comanda_mesa)
@@ -62,6 +67,7 @@ class Comanda(Base):
     factura: Mapped["Factura | None"] = relationship(
         back_populates="comanda", uselist=False
     )
+    reserva: Mapped["Reserva | None"] = relationship(back_populates="comanda")
 
     @property
     def abierta(self) -> bool:

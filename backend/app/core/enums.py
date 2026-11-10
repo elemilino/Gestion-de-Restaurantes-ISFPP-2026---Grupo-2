@@ -36,14 +36,15 @@ class EstadoComanda(StrEnum):
 
 
 class EstadoReserva(StrEnum):
-    """Estados de la reserva. Provisorios: los define HU-11a.
+    """Estados de la reserva (HU-11a/b y diagrama de clases).
 
-    HU-01b solo usa ACTIVA (las reservas activas bloquean cambios en sus mesas).
+    HU-01b usa ACTIVA: las reservas activas bloquean cambios en sus mesas.
     """
 
     ACTIVA = "ACTIVA"
+    CUMPLIDA = "CUMPLIDA"
     CANCELADA = "CANCELADA"
-    FINALIZADA = "FINALIZADA"
+    AUSENTE = "AUSENTE"
 
 
 class TipoAcreditacion(StrEnum):

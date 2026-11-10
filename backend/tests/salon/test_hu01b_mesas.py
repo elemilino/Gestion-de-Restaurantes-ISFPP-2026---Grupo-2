@@ -193,7 +193,7 @@ def test_hu01b_ca6_elimina_mesa_sin_reservas_ni_comanda_abierta(
 ):
     mesa = crear_mesa(1, salon)
     crear_comanda(mesa, estado=EstadoComanda.FACTURADA)
-    crear_reserva([mesa], comensales=2, estado=EstadoReserva.FINALIZADA)
+    crear_reserva([mesa], comensales=2, estado=EstadoReserva.CUMPLIDA)
     h = headers()
     assert client.delete(f"{URL}/{mesa.id}", headers=h).status_code == 204
     assert client.get(URL, headers=h).json() == []

@@ -10,7 +10,7 @@ from app.models.facturacion import DetallePago, Factura
 from app.models.medios_pago import MedioPago
 from app.models.personal import Mozo
 from app.models.promociones import Promocion
-from app.models.reservas import Reserva
+from app.models.reservas import DetalleMenuAcordado, MenuAcordado, Reserva, Sena
 from app.models.salon import Mesa, Sector
 from app.models.usuario import Usuario
 
@@ -18,15 +18,18 @@ __all__ = [
     "Cliente",
     "Comanda",
     "DetalleComanda",
+    "DetalleMenuAcordado",
     "DetallePago",
     "Factura",
     "MedioPago",
+    "MenuAcordado",
     "Mesa",
     "Mozo",
     "Producto",
     "Promocion",
     "Reserva",
     "SeccionCarta",
+    "Sena",
     "Sector",
     "Usuario",
 ]

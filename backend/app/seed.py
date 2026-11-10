@@ -14,13 +14,14 @@ from sqlalchemy import select
 
 from app import models  # noqa: F401  (registra las tablas para create_all)
 from app.core.database import Base, SessionLocal, engine
-from app.core.enums import Rol, TipoAcreditacion, TipoProducto
+from app.core.enums import EstadoReserva, Rol, TipoAcreditacion, TipoProducto
 from app.core.security import hashear_password
 from app.models.carta import Producto, SeccionCarta
+from app.models.clientes import Cliente
 from app.models.medios_pago import MedioPago
 from app.models.personal import Mozo
 from app.models.promociones import Promocion
-from app.models.reservas import Reserva
+from app.models.reservas import DetalleMenuAcordado, MenuAcordado, Reserva, Sena
 from app.models.salon import Mesa, Sector
 from app.models.usuario import Usuario
 
@@ -76,12 +77,6 @@ def seed_salon(db) -> dict[str, Sector]:
     m3 = Mesa(numero=3, capacidad=6, sector_id=sectores["Terraza"].id, activo=True)
     m4 = Mesa(numero=4, capacidad=4, sector_id=sectores["Patio"].id, activo=True)
     db.add_all([m1, m2, m3, m4])
-    db.flush()
-
-    # Reserva activa para hoy: la mesa 3 aparece Reservada, no se puede eliminar
-    # ni bajar su capacidad a menos de 5 (HU-01b CA5 y CA7).
-    hoy_21 = datetime.now().replace(hour=21, minute=0, second=0, microsecond=0)
-    db.add(Reserva(fecha_hora=hoy_21, cantidad_comensales=5, mesas=[m3]))
     db.flush()
     return sectores
 
@@ -206,6 +201,85 @@ def seed_medios_pago(db) -> None:
     db.flush()
 
 
+CLIENTES = [
+    ("Laura", "Gómez", "2804111111", "30111222", "laura.gomez@example.com"),
+    ("Martín", "Díaz", "2804222222", "28333444", None),
+    ("Sofía", "Herrera", "2804333333", "35555666", "sofia.h@example.com"),
+]
+
+
+def seed_clientes_y_reservas(db) -> None:
+    """Clientes (HU-10) y reservas con seña y menú acordado (HU-11a/b)."""
+    clientes = []
+    for nombre, apellido, telefono, dni, email in CLIENTES:
+        c = Cliente(
+            nombre=nombre, apellido=apellido, telefono=telefono, dni=dni, email=email
+        )
+        db.add(c)
+        clientes.append(c)
+    db.flush()
+    mesas = {m.numero: m for m in db.scalars(select(Mesa))}
+    efectivo = db.scalars(select(MedioPago).where(MedioPago.nombre == "Efectivo")).one()
+    mp = db.scalars(select(MedioPago).where(MedioPago.nombre == "MercadoPago")).one()
+    noquis = db.scalars(
+        select(Producto).where(Producto.nombre == "Ñoquis con salsa")
+    ).one()
+
+    hoy = datetime.now().replace(minute=0, second=0, microsecond=0)
+    hoy_21 = hoy.replace(hour=21)
+
+    def reserva(cliente, cuando, comensales, numeros, medio, monto, **extra):
+        r = Reserva(
+            fecha_hora=cuando,
+            cantidad_comensales=comensales,
+            cliente_id=cliente.id,
+            mesas=[mesas[n] for n in numeros],
+            sena=Sena(monto=Decimal(monto), medio_pago_id=medio.id),
+            **extra,
+        )
+        db.add(r)
+        return r
+
+    # Activa para hoy: la mesa 3 aparece Reservada, no se puede eliminar ni
+    # bajar su capacidad a menos de 5 (HU-01b CA5 y CA7).
+    reserva(clientes[0], hoy_21, 5, [3], efectivo, "15000")
+    # Activa para mañana, con menú acordado (HU-11a CA7).
+    manana = reserva(clientes[1], hoy_21 + timedelta(days=1), 4, [1], mp, "10000")
+    manana.menu_acordado = MenuAcordado(
+        detalles=[
+            DetalleMenuAcordado(
+                producto_id=noquis.id, cantidad=4, precio=Decimal("4500")
+            )
+        ]
+    )
+    # Historial para HU-12e: cumplida, ausente y cancelada.
+    hace = timedelta(days=3)
+    reserva(
+        clientes[0],
+        hoy_21 - hace,
+        2,
+        [2],
+        efectivo,
+        "5000",
+        estado=EstadoReserva.CUMPLIDA,
+        fecha_hora_llegada=hoy_21 - hace,
+    )
+    reserva(
+        clientes[2], hoy_21 - hace, 4, [4], mp, "8000", estado=EstadoReserva.AUSENTE
+    )
+    cancelada = reserva(
+        clientes[1],
+        hoy_21 - timedelta(days=5),
+        2,
+        [2],
+        efectivo,
+        "5000",
+        estado=EstadoReserva.CANCELADA,
+    )
+    cancelada.sena.devuelta = True
+    db.flush()
+
+
 def seed_promociones(db) -> None:
     """Promociones de ejemplo (HU-09a).
 
@@ -258,6 +332,7 @@ def main() -> None:
         seed_mozos(db, usuarios["mozo"], sectores["Salón Principal"])
         seed_carta(db)
         seed_medios_pago(db)
+        seed_clientes_y_reservas(db)
         seed_promociones(db)
         db.commit()
     print(
@@ -265,7 +340,7 @@ def main() -> None:
         "cocinero (contraseña: 1234)"
     )
     print("Sectores y mesas creados con mozo asignado a Salón Principal.")
-    print("Reserva de ejemplo para hoy en la mesa 3.")
+    print("Clientes y reservas de ejemplo (hoy en la mesa 3, mañana en la mesa 1).")
     print("Carta de ejemplo cargada.")
     print("Medios de pago cargados.")
     print("Promociones de ejemplo cargadas.")
