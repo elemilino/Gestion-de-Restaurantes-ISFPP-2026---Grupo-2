@@ -7,6 +7,7 @@ Cada HU puede agregar sus datos de ejemplo en una función `seed_<modulo>(db)` y
 llamarla desde `main()`.
 """
 
+import random
 from datetime import date, datetime, timedelta
 from decimal import Decimal
 
@@ -14,10 +15,19 @@ from sqlalchemy import select
 
 from app import models  # noqa: F401  (registra las tablas para create_all)
 from app.core.database import Base, SessionLocal, engine
-from app.core.enums import EstadoReserva, Rol, TipoAcreditacion, TipoProducto
+from app.core.enums import (
+    EstadoComanda,
+    EstadoFactura,
+    EstadoReserva,
+    Rol,
+    TipoAcreditacion,
+    TipoProducto,
+)
 from app.core.security import hashear_password
 from app.models.carta import Producto, SeccionCarta
 from app.models.clientes import Cliente
+from app.models.comandas import Comanda, DetalleComanda
+from app.models.facturacion import DetallePago, Factura
 from app.models.medios_pago import MedioPago
 from app.models.personal import Mozo
 from app.models.promociones import Promocion
@@ -304,6 +314,94 @@ def seed_clientes_y_reservas(db) -> None:
     db.flush()
 
 
+def seed_historial(db) -> None:
+    """Comandas cerradas y facturas de las últimas 3 semanas, para los reportes
+    (HU-12a a HU-12f). Se generan con una semilla fija: siempre son las mismas."""
+    azar = random.Random(2026)
+    mozo = db.scalars(select(Mozo)).first()
+    mesas = list(db.scalars(select(Mesa).where(Mesa.activo)))
+    productos = list(
+        db.scalars(
+            select(Producto).where(
+                Producto.activo,
+                Producto.tipo.in_(
+                    [TipoProducto.PLATO, TipoProducto.POSTRE, TipoProducto.BEBIDA]
+                ),
+            )
+        )
+    )
+    medios = list(db.scalars(select(MedioPago).where(MedioPago.activo)))
+    hoy = datetime.now().replace(minute=0, second=0, microsecond=0)
+    for dias in range(21, 0, -1):
+        for _ in range(azar.randint(2, 6)):
+            apertura = (hoy - timedelta(days=dias)).replace(
+                hour=azar.choice([12, 13, 13, 20, 21, 21, 22]),
+                minute=azar.choice([0, 15, 30, 45]),
+            )
+            cierre = apertura + timedelta(minutes=azar.randint(50, 130))
+            elegidos = azar.sample(productos, azar.randint(1, 3))
+            detalles = [
+                DetalleComanda(
+                    producto_id=p.id,
+                    cantidad=azar.randint(1, 3),
+                    precio_unitario=p.precio,
+                    entregado=True,
+                )
+                for p in elegidos
+            ]
+            sorteo = azar.random()
+            if sorteo < 0.08:  # anulada: el cliente se fue sin pedir (HU-06 CA3)
+                estado, detalles = EstadoComanda.ANULADA, []
+            elif sorteo < 0.18:  # facturada pero todavía adeudada
+                estado = EstadoComanda.CERRADA
+            else:
+                estado = EstadoComanda.FACTURADA
+            comanda = Comanda(
+                cantidad_comensales=azar.randint(1, 4),
+                mozo_id=mozo.id,
+                mesas=[azar.choice(mesas)],
+                fecha_hora_apertura=apertura,
+                fecha_hora_cierre=cierre,
+                estado=estado,
+                motivo_anulacion=(
+                    "El cliente se retiró sin pedir"
+                    if estado == EstadoComanda.ANULADA
+                    else None
+                ),
+                detalles=detalles,
+            )
+            db.add(comanda)
+            db.flush()
+            if estado == EstadoComanda.ANULADA:
+                continue
+            importe = sum(d.precio_unitario * d.cantidad for d in detalles)
+            factura = Factura(
+                comanda_id=comanda.id,
+                fecha=cierre,
+                importe_total=importe,
+                total_a_pagar=importe,
+                estado=(
+                    EstadoFactura.PAGADA
+                    if estado == EstadoComanda.FACTURADA
+                    else EstadoFactura.ADEUDADA
+                ),
+            )
+            if estado == EstadoComanda.FACTURADA:
+                medio = azar.choice(medios)
+                recargo = importe * medio.porcentaje_recargo / 100
+                factura.total_a_pagar = importe + recargo
+                factura.monto_recibido = importe + recargo
+                factura.detalles_pago = [
+                    DetallePago(
+                        medio_pago_id=medio.id,
+                        monto_abonado=importe,
+                        monto_con_recargo=importe + recargo,
+                    )
+                ]
+            db.add(factura)
+    db.flush()
+
+
 def seed_promociones(db) -> None:
     """Promociones de ejemplo (HU-09a).
 
@@ -358,6 +456,7 @@ def main() -> None:
         seed_medios_pago(db)
         seed_clientes_y_reservas(db)
         seed_promociones(db)
+        seed_historial(db)
         db.commit()
     print(
         "Base recreada. Usuarios: admin / mozo / cajero / recepcion / encargado / "
@@ -368,6 +467,7 @@ def main() -> None:
     print("Carta de ejemplo cargada.")
     print("Medios de pago cargados.")
     print("Promociones de ejemplo cargadas.")
+    print("Historial de comandas y facturas de las últimas 3 semanas (reportes).")
 
 
 if __name__ == "__main__":
