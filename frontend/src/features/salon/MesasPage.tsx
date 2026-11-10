@@ -1,16 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router'
 
-import { ApiError } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
+import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
 import { FilterChip } from '../../components/FilterChip'
 import { Icon } from '../../components/Icon'
 import type { Tono } from '../../components/tonos'
+import { mensajeDe } from '../../lib/errores'
 import { Rol } from '../../lib/roles'
-import { obtenerMiPerfilMozo, validarMesa } from '../mozos/api'
+import { tableroMesas } from '../comandas/api'
+import { ComandaPanel } from '../comandas/ComandaPanel'
+import { NuevaComandaModal } from '../comandas/NuevaComandaModal'
+import type { MesaTablero } from '../comandas/types'
+import { obtenerMiPerfilMozo } from '../mozos/api'
 import type { Mozo } from '../mozos/types'
 import { MesaCard } from './MesaCard'
-import { MESAS_MOCK, type EstadoMesa, type MesaVista } from './mesas.mock'
+import { aVista, type EstadoMesa } from './mesaVista'
 
 const FILTROS: { estado: EstadoMesa; etiqueta: string; tono: Tono }[] = [
   { estado: 'libre', etiqueta: 'Libres', tono: 'libre' },
@@ -20,108 +26,100 @@ const FILTROS: { estado: EstadoMesa; etiqueta: string; tono: Tono }[] = [
 ]
 
 /**
- * Tablero de mesas del salón (pantalla de Stitch) con datos de prueba.
- * Es la referencia de cómo pasar una pantalla de Stitch a React.
- * Valida permisos operativos por sector para mozos (HU-02 CA2).
+ * Tablero de mesas del salón con su comanda en curso (HU-01b, HU-05, HU-06).
+ * El mozo ve el sector que tiene asignado (HU-02 CA1); abrir la comanda en otro
+ * sector lo rechaza el backend (HU-05a CA6).
  */
 export function MesasPage() {
   const { usuario } = useAuth()
+  const navigate = useNavigate()
+  const esMozo = usuario?.rol === Rol.MOZO
+  const [mesas, setMesas] = useState<MesaTablero[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
   const [filtro, setFiltro] = useState<EstadoMesa | null>(null)
   const [perfilMozo, setPerfilMozo] = useState<Mozo | null>(null)
-  const [alertaCA2, setAlertaCA2] = useState<{ tipo: 'error' | 'exito'; mensaje: string } | null>(
-    null,
-  )
+  const [abrirEn, setAbrirEn] = useState<MesaTablero | null>(null)
+  const [comandaId, setComandaId] = useState<number | null>(null)
 
-  const esMozo = usuario?.rol === Rol.MOZO
+  const recargar = useCallback(async () => {
+    try {
+      setMesas(await tableroMesas())
+      setError(null)
+    } catch (e) {
+      setError(mensajeDe(e, 'No se pudo cargar el tablero de mesas'))
+    } finally {
+      setCargando(false)
+    }
+  }, [])
 
   useEffect(() => {
+    let vigente = true
+    tableroMesas()
+      .then((m) => vigente && setMesas(m))
+      .catch((e) => vigente && setError(mensajeDe(e, 'No se pudo cargar el tablero de mesas')))
+      .finally(() => vigente && setCargando(false))
     if (esMozo) {
       obtenerMiPerfilMozo()
-        .then(setPerfilMozo)
-        .catch(() => {
-          // Si el usuario no tiene perfil aún, se maneja silenciosamente
-        })
+        .then((p) => vigente && setPerfilMozo(p))
+        .catch(() => vigente && setPerfilMozo(null))
+    }
+    return () => {
+      vigente = false
     }
   }, [esMozo])
 
-  async function manejarOperacionMesa(mesa: MesaVista) {
-    setAlertaCA2(null)
-    try {
-      const res = await validarMesa(mesa.numero)
-      setAlertaCA2({
-        tipo: 'exito',
-        mensaje: `Mesa #${mesa.numero}: ${res.mensaje}`,
-      })
-      setTimeout(() => setAlertaCA2(null), 4000)
-    } catch (e) {
-      if (e instanceof ApiError) {
-        setAlertaCA2({
-          tipo: 'error',
-          mensaje: `Mesa #${mesa.numero}: ${e.message}`,
-        })
-      } else {
-        setAlertaCA2({
-          tipo: 'error',
-          mensaje: `No se pudo validar la mesa #${mesa.numero}`,
-        })
-      }
-      setTimeout(() => setAlertaCA2(null), 6000)
+  const cerrarPanel = useCallback(() => setComandaId(null), [])
+  const cerrarNueva = useCallback(() => setAbrirEn(null), [])
+
+  function accion(mesa: MesaTablero) {
+    setAviso(null)
+    if (mesa.comanda) {
+      setComandaId(mesa.comanda.id)
+    } else if (mesa.estado_mesa === 'reservada' && !esMozo) {
+      navigate('/reservas')
+    } else {
+      setAbrirEn(mesa)
     }
   }
 
-  const mesas = MESAS_MOCK
-  const visibles = filtro ? mesas.filter((m) => m.estado === filtro) : mesas
+  const delSector =
+    esMozo && perfilMozo?.sector_id
+      ? mesas.filter((m) => m.sector_id === perfilMozo.sector_id)
+      : mesas
+  const visibles = filtro ? delSector.filter((m) => m.estado_mesa === filtro) : delSector
 
   return (
     <>
-      {/* Banner de sector asignado al Mozo en sesión (CA1/CA2) */}
       {esMozo && perfilMozo && (
-        <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-xs">
-          <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-brand-500 text-white flex items-center justify-center font-bold">
-              <Icon name="badge" className="text-lg" />
-            </span>
-            <div>
-              <span className="font-bold text-brand-900 block">
-                Mozo: {perfilMozo.nombre} {perfilMozo.apellido}
-              </span>
-              <span className="text-slate-600">
-                Sector asignado:{' '}
-                <strong className="text-brand-900 font-bold">
-                  {perfilMozo.sector_nombre ?? 'Sin sector asignado'}
-                </strong>{' '}
-                (único sector habilitado para operar según CA1 y CA2)
-              </span>
-            </div>
-          </div>
-          <span className="px-3 py-1 rounded-full bg-white border border-amber-200 text-brand-800 font-bold text-[11px] self-start sm:self-auto">
-            Restricción Operativa Activa
+        <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 flex items-center gap-2.5 text-xs shadow-xs">
+          <span className="w-8 h-8 rounded-xl bg-brand-500 text-white flex items-center justify-center font-bold">
+            <Icon name="badge" className="text-lg" />
           </span>
+          <div>
+            <span className="font-bold text-brand-900 block">
+              Mozo: {perfilMozo.nombre} {perfilMozo.apellido}
+            </span>
+            <span className="text-slate-600">
+              Sector asignado:{' '}
+              <strong className="text-brand-900">
+                {perfilMozo.sector_nombre ?? 'Sin sector asignado'}
+              </strong>{' '}
+              (solo podés operar sus mesas)
+            </span>
+          </div>
         </div>
       )}
 
-      {/* Alerta de validación de sector (CA2) */}
-      {alertaCA2 && (
-        <div
-          className={`p-3.5 rounded-xl border flex items-center gap-2.5 text-xs font-semibold animate-in slide-in-from-top-2 duration-200 ${
-            alertaCA2.tipo === 'error'
-              ? 'bg-status-busy-bg border-status-busy-border text-status-busy-text'
-              : 'bg-status-free-bg border-status-free-border text-status-free-text'
-          }`}
-        >
-          <Icon
-            name={alertaCA2.tipo === 'error' ? 'report_problem' : 'check_circle'}
-            className="text-base shrink-0"
-          />
-          <span>{alertaCA2.mensaje}</span>
-        </div>
-      )}
+      {error && <Alert tono="error">{error}</Alert>}
+      {aviso && <Alert tono="exito">{aviso}</Alert>}
 
       <div className="bg-white rounded-2xl p-4 border border-amber-100 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <FilterChip
             etiqueta="Todas"
-            cantidad={mesas.length}
+            cantidad={delSector.length}
             activo={filtro === null}
             onClick={() => setFiltro(null)}
           />
@@ -130,22 +128,52 @@ export function MesasPage() {
               key={f.estado}
               etiqueta={f.etiqueta}
               tono={f.tono}
-              cantidad={mesas.filter((m) => m.estado === f.estado).length}
+              cantidad={delSector.filter((m) => m.estado_mesa === f.estado).length}
               activo={filtro === f.estado}
               onClick={() => setFiltro(f.estado)}
             />
           ))}
         </div>
-        <Button icono="add_circle" className="shadow-md shadow-brand-600/25">
-          Nueva mesa
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variante="secundario" icono="refresh" onClick={recargar}>
+            Actualizar
+          </Button>
+          {usuario?.rol === Rol.ADMINISTRADOR && (
+            <Button icono="add_circle" onClick={() => navigate('/configuracion/mesas')}>
+              Nueva mesa
+            </Button>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {visibles.map((mesa) => (
-          <MesaCard key={mesa.numero} mesa={mesa} onAccion={() => manejarOperacionMesa(mesa)} />
-        ))}
-      </div>
+      {cargando ? (
+        <p className="text-sm text-slate-500 text-center py-10">Cargando mesas…</p>
+      ) : visibles.length === 0 ? (
+        <p className="text-sm text-slate-500 text-center py-10">
+          {mesas.length === 0 ? 'Todavía no hay mesas cargadas' : 'No hay mesas en ese estado'}
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {visibles.map((mesa) => (
+            <MesaCard key={mesa.id} mesa={aVista(mesa)} onAccion={() => accion(mesa)} />
+          ))}
+        </div>
+      )}
+
+      <NuevaComandaModal
+        mesa={abrirEn}
+        libres={mesas.filter((m) => m.estado_mesa === 'libre')}
+        onCerrar={cerrarNueva}
+        onCreada={(comanda) => {
+          setAbrirEn(null)
+          setAviso(
+            `Comanda #${comanda.id} abierta en la mesa ${comanda.mesas.map((m) => m.numero).join(', ')}`,
+          )
+          setComandaId(comanda.id)
+          recargar()
+        }}
+      />
+      <ComandaPanel comandaId={comandaId} onCerrar={cerrarPanel} onCambio={recargar} />
     </>
   )
 }
