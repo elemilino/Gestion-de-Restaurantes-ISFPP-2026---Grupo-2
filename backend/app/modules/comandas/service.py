@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.core.enums import EstadoComanda
+from app.core.enums import EstadoComanda, EstadoReserva
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
 from app.models.comandas import Comanda, DetalleComanda
 from app.models.personal import Mozo
+from app.models.reservas import Reserva
 from app.models.carta import Producto
 from app.models.salon import Mesa
 from app.modules.carta.service import ProductoService
@@ -29,11 +30,22 @@ class ComandaService:
 
     # ---------- HU-05a ----------
     def crear(self, datos: ComandaCrear) -> Comanda:
-        """HU-05a: crea una comanda abierta para un mozo y una o más mesas."""
+        """HU-05a: crea una comanda abierta para un mozo y una o más mesas.
+
+        CA8: si viene de una reserva Cumplida, usa sus mesas y comensales y carga
+        su menú acordado con el precio acordado.
+        """
         mozo = self._validar_mozo(datos.dni_mozo)
-        mesas = self._validar_mesas(datos.numeros_mesa)
+        reserva = None
+        if datos.reserva_id is not None:
+            reserva = self._reserva_para_comanda(datos.reserva_id)
+            mesas = list(reserva.mesas)
+            comensales = reserva.cantidad_comensales
+        else:
+            mesas = self._validar_mesas(datos.numeros_mesa)
+            comensales = datos.cantidad_comensales
         self._validar_sector(mesas, mozo)
-        self._validar_capacidad(datos.cantidad_comensales, mesas)
+        self._validar_capacidad(comensales, mesas)
 
         ocupadas = self.comandas.numeros_de_mesas_ocupadas(mesas)
         if ocupadas:
@@ -42,9 +54,43 @@ class ComandaService:
             )
 
         comanda = Comanda(
-            cantidad_comensales=datos.cantidad_comensales, mozo=mozo, mesas=mesas
+            cantidad_comensales=comensales, mozo=mozo, mesas=mesas, reserva=reserva
         )
+        if reserva is not None and reserva.menu_acordado is not None:
+            self._cargar_menu_acordado(comanda, reserva)
         return self.comandas.guardar(comanda)
+
+    def _reserva_para_comanda(self, reserva_id: int) -> Reserva:
+        reserva = self.db.get(Reserva, reserva_id)
+        if reserva is None:
+            raise NotFoundError("La reserva no existe", "RESERVA_NO_ENCONTRADA")
+        if reserva.estado != EstadoReserva.CUMPLIDA:
+            raise BusinessRuleError(
+                "La reserva no está Cumplida: primero registrá la llegada del cliente",
+                "RESERVA_NO_CUMPLIDA",
+            )
+        if reserva.comanda is not None:
+            raise ConflictError(
+                "La reserva ya tiene una comanda", "RESERVA_CON_COMANDA"
+            )
+        return reserva
+
+    def _cargar_menu_acordado(self, comanda: Comanda, reserva: Reserva) -> None:
+        """HU-05a CA8: los platos del menú acordado entran con el precio acordado."""
+        por_producto: dict[int, DetalleComanda] = {}
+        for item in reserva.menu_acordado.detalles:
+            self._verificar_disponible(item.producto)
+            self.carta.descontar_stock(item.producto, item.cantidad)
+            detalle = por_producto.get(item.producto_id)
+            if detalle is None:
+                por_producto[item.producto_id] = DetalleComanda(
+                    producto=item.producto,
+                    cantidad=item.cantidad,
+                    precio_unitario=item.precio,
+                )
+            else:
+                detalle.cantidad += item.cantidad
+        comanda.detalles.extend(por_producto.values())
 
     # ---------- HU-05b ----------
     def modificar(self, comanda_id: int, datos: ComandaModificar) -> Comanda:
