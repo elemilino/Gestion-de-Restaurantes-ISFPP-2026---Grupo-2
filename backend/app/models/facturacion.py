@@ -53,4 +53,3 @@ class DetallePago(Base):
 
     factura: Mapped["Factura"] = relationship(back_populates="detalles_pago")
     medio_pago: Mapped["MedioPago"] = relationship()
-
