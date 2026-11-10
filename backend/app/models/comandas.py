@@ -9,6 +9,7 @@ from sqlalchemy import (
     Enum,
     ForeignKey,
     Numeric,
+    String,
     Table,
     UniqueConstraint,
 )
@@ -42,6 +43,9 @@ class Comanda(Base):
     estado: Mapped[EstadoComanda] = mapped_column(
         Enum(EstadoComanda, native_enum=False, length=20),
         default=EstadoComanda.ABIERTA,
+    )
+    motivo_anulacion: Mapped[str | None] = mapped_column(
+        String(200), nullable=True, default=None
     )
 
     mozo: Mapped[Mozo] = relationship()
