@@ -58,7 +58,7 @@ def ver_carta(
 @router.get(
     "/secciones",
     response_model=list[SeccionOut],
-    dependencies=solo_admin,
+    dependencies=[Depends(require_roles(Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL))],
     summary="Listar secciones de la carta",
 )
 def listar_secciones(db: Session = Depends(get_db)):
