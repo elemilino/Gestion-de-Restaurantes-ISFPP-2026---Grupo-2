@@ -1,12 +1,12 @@
 import { Icon } from '../../components/Icon'
 import { StatusBadge } from '../../components/StatusBadge'
 import { formatMoneda } from '../../lib/format'
-import { TIPOS_PRODUCTO } from './tiposProducto'
+import { TIPOS_CARTA } from './tiposProducto'
 import type { ProductoCarta } from './types'
 
 /** Tarjeta de un producto en "Ver carta" (HU-03b). Atenuada si no está disponible. */
 export function ProductoCard({ producto }: { producto: ProductoCarta }) {
-  const tipo = TIPOS_PRODUCTO[producto.tipo]
+  const tipo = TIPOS_CARTA[producto.tipo]
 
   return (
     <article

@@ -58,7 +58,10 @@ def ver_carta(
 @router.get(
     "/secciones",
     response_model=list[SeccionOut],
-    dependencies=[Depends(require_roles(Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL))],
+    # Encargado general: filtro de HU-12b. Cocinero: arma menús (HU-09b).
+    dependencies=[
+        Depends(require_roles(Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL, Rol.COCINERO))
+    ],
     summary="Listar secciones de la carta",
 )
 def listar_secciones(db: Session = Depends(get_db)):

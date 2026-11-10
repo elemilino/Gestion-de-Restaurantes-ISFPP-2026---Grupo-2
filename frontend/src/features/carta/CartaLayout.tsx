@@ -12,13 +12,13 @@ interface Pestania {
   roles: Rol[]
 }
 
-/** Pestañas de /carta. Para sumar una (ej. Menús o Promociones, HU-09), agregarla acá. */
+/** Pestañas de /carta: carta, secciones, productos, promociones (HU-09a) y menús (HU-09b). */
 const PESTANIAS: Pestania[] = [
   {
     ruta: '/carta',
     etiqueta: 'Ver carta',
     icono: 'menu_book',
-    roles: [Rol.ADMINISTRADOR, Rol.MOZO],
+    roles: [Rol.ADMINISTRADOR, Rol.MOZO, Rol.ENCARGADO_GENERAL, Rol.COCINERO],
   },
   {
     ruta: '/carta/secciones',
@@ -37,6 +37,12 @@ const PESTANIAS: Pestania[] = [
     etiqueta: 'Promociones',
     icono: 'local_offer',
     roles: [Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL],
+  },
+  {
+    ruta: '/carta/menus',
+    etiqueta: 'Menús',
+    icono: 'lunch_dining',
+    roles: [Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL, Rol.COCINERO],
   },
 ]
 

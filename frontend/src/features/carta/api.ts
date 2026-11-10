@@ -1,5 +1,14 @@
 import { apiDelete, apiGet, apiPatch, apiPost, apiPut } from '../../api/client'
-import type { Carta, FiltrosProductos, Producto, ProductoDatos, Seccion } from './types'
+import type {
+  Carta,
+  FiltrosProductos,
+  Menu,
+  MenuDatos,
+  Producto,
+  ProductoDatos,
+  Seccion,
+  TipoMenu,
+} from './types'
 
 // --- Secciones (HU-03a) ---
 
@@ -58,3 +67,19 @@ export const cambiarStock = (id: number, stock: number | null) =>
 
 export const verCarta = (seccionId?: number) =>
   apiGet<Carta>('/carta' + (seccionId ? '?seccion_id=' + seccionId : ''))
+
+// --- Menús especiales (HU-09b) ---
+
+export const listarMenus = () => apiGet<Menu[]>('/carta/menus')
+
+const RUTA_MENU: Record<TipoMenu, string> = {
+  MENU_EJECUTIVO: '/carta/menus-ejecutivos',
+  MENU_DEL_DIA: '/carta/menus-del-dia',
+}
+
+export const crearMenu = (tipo: TipoMenu, datos: MenuDatos) => apiPost<Menu>(RUTA_MENU[tipo], datos)
+
+export const modificarMenu = (tipo: TipoMenu, id: number, datos: MenuDatos) =>
+  apiPut<Menu>(`${RUTA_MENU[tipo]}/${id}`, datos)
+
+export const eliminarMenu = (id: number) => apiDelete(`/carta/menus/${id}`)
