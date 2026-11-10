@@ -36,7 +36,7 @@ class Factura(Base):
         default=EstadoFactura.ADEUDADA,
     )
 
-    comanda: Mapped["Comanda"] = relationship()
+    comanda: Mapped["Comanda"] = relationship(back_populates="factura")
     detalles_pago: Mapped[list["DetallePago"]] = relationship(
         back_populates="factura", cascade="all, delete-orphan"
     )

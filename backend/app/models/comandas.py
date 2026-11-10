@@ -2,6 +2,7 @@
 
 from datetime import datetime
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     CheckConstraint,
@@ -20,6 +21,9 @@ from app.core.enums import EstadoComanda
 from app.models.carta import Producto
 from app.models.personal import Mozo
 from app.models.salon import Mesa
+
+if TYPE_CHECKING:
+    from app.models.facturacion import Factura
 
 comanda_mesa = Table(
     "comanda_mesa",
@@ -52,6 +56,11 @@ class Comanda(Base):
     mesas: Mapped[list[Mesa]] = relationship(secondary=comanda_mesa)
     detalles: Mapped[list["DetalleComanda"]] = relationship(
         back_populates="comanda", cascade="all, delete-orphan"
+    )
+    # HU-08a: una comanda tiene a lo sumo una factura. Se usa para bloquear la
+    # reapertura y la modificación de una comanda con factura (HU-05b, HU-05d).
+    factura: Mapped["Factura | None"] = relationship(
+        back_populates="comanda", uselist=False
     )
 
     @property
