@@ -9,6 +9,7 @@ import { SeccionesPage } from './features/carta/SeccionesPage'
 import { VerCartaPage } from './features/carta/VerCartaPage'
 import { ClientesPage } from './features/clientes/ClientesPage'
 import { MozosPage } from './features/mozos/MozosPage'
+import { PromocionesPage } from './features/promociones/PromocionesPage'
 import { GestionMesasPage } from './features/salon/GestionMesasPage'
 import { MesasPage } from './features/salon/MesasPage'
 import { SectoresPage } from './features/salon/SectoresPage'
@@ -46,6 +47,14 @@ export default function App() {
               element={
                 <RequiereRol roles={[Rol.ADMINISTRADOR]} redirigirA="/carta">
                   <ProductosPage />
+                </RequiereRol>
+              }
+            />
+            <Route
+              path="promociones"
+              element={
+                <RequiereRol roles={[Rol.ADMINISTRADOR]} redirigirA="/carta">
+                  <PromocionesPage />
                 </RequiereRol>
               }
             />
