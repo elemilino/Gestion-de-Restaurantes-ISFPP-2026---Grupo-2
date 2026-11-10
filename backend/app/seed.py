@@ -7,8 +7,10 @@ Cada HU puede agregar sus datos de ejemplo en una función `seed_<modulo>(db)` y
 llamarla desde `main()`.
 """
 
-from datetime import datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
+
+from sqlalchemy import select
 
 from app import models  # noqa: F401  (registra las tablas para create_all)
 from app.core.database import Base, SessionLocal, engine
@@ -17,6 +19,7 @@ from app.core.security import hashear_password
 from app.models.carta import Producto, SeccionCarta
 from app.models.medios_pago import MedioPago
 from app.models.personal import Mozo
+from app.models.promociones import Promocion
 from app.models.reservas import Reserva
 from app.models.salon import Mesa, Sector
 from app.models.usuario import Usuario
@@ -201,6 +204,49 @@ def seed_medios_pago(db) -> None:
     db.flush()
 
 
+def seed_promociones(db) -> None:
+    """Promociones de ejemplo (HU-09a).
+
+    Una vigente, una programada y una vencida (inactiva). Los productos se
+    buscan por nombre para no depender del orden de creación del seed de carta.
+    """
+    productos = {p.nombre: p for p in db.scalars(select(Producto))}
+    hoy = date.today()
+
+    db.add_all(
+        [
+            Promocion(
+                descripcion="Martes de pastas",
+                fecha_inicio=hoy,
+                fecha_fin=hoy + timedelta(days=30),
+                descuento=Decimal("15.00"),
+                activo=True,
+                productos=[
+                    productos["Ñoquis con salsa"],
+                    productos["Milanesa napolitana"],
+                ],
+            ),
+            Promocion(
+                descripcion="Happy hour de postres",
+                fecha_inicio=hoy + timedelta(days=7),
+                fecha_fin=hoy + timedelta(days=14),
+                descuento=Decimal("20.00"),
+                activo=True,
+                productos=[productos["Flan casero"]],
+            ),
+            Promocion(
+                descripcion="Promo de lanzamiento (vencida)",
+                fecha_inicio=hoy - timedelta(days=30),
+                fecha_fin=hoy - timedelta(days=10),
+                descuento=Decimal("10.00"),
+                activo=False,
+                productos=[productos["Agua mineral"]],
+            ),
+        ]
+    )
+    db.flush()
+
+
 def main() -> None:
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
@@ -210,12 +256,14 @@ def main() -> None:
         seed_mozos(db, usuarios["mozo"], sectores["Salón Principal"])
         seed_carta(db)
         seed_medios_pago(db)
+        seed_promociones(db)
         db.commit()
     print("Base recreada. Usuarios: admin / mozo / cajero (contraseña: 1234)")
     print("Sectores y mesas creados con mozo asignado a Salón Principal.")
     print("Reserva de ejemplo para hoy en la mesa 3.")
     print("Carta de ejemplo cargada.")
     print("Medios de pago cargados.")
+    print("Promociones de ejemplo cargadas.")
 
 
 if __name__ == "__main__":

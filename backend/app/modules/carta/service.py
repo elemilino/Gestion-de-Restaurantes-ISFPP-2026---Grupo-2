@@ -19,6 +19,7 @@ from app.modules.carta.schemas import (
     SeccionOut,
     SeccionUpdate,
 )
+from app.modules.promociones.repository import PromocionRepository
 
 
 class SeccionService:
@@ -175,7 +176,8 @@ class ProductoService:
         if comandas > 0:
             motivos.append(f"está en {comandas} comandas abiertas")
         # TODO(HU-09b): menú ejecutivo o del día vigente
-        # TODO(HU-09a): promoción vigente
+        if PromocionRepository(self.db).buscar_vigente_por_producto(producto.id):
+            motivos.append("está en una promoción vigente")
         # TODO(HU-11a): menú acordado de una reserva activa
         return motivos
 
