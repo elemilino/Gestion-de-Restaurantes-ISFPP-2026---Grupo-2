@@ -3,6 +3,8 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core.enums import EstadoComanda
+
 
 class ComandaCrear(BaseModel):
     """Lo que envía el mozo al crear una comanda (HU-05a)."""
@@ -47,6 +49,26 @@ class DetalleCantidad(BaseModel):
     cantidad: int = Field(gt=0)
 
 
+class DetalleEntrega(BaseModel):
+    """Estado de entrega de un detalle de comanda en mesa (HU-06)."""
+
+    entregado: bool = True
+
+
+class ComandaAnular(BaseModel):
+    """Motivo obligatorio para anular una comanda abierta (HU-06 CA3)."""
+
+    motivo: str = Field(min_length=3, max_length=200)
+
+    @field_validator("motivo")
+    @classmethod
+    def motivo_no_vacio(cls, valor: str) -> str:
+        limpio = valor.strip()
+        if len(limpio) < 3:
+            raise ValueError("El motivo debe tener al menos 3 caracteres")
+        return limpio
+
+
 class MozoResumen(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -78,6 +100,7 @@ class DetalleRespuesta(BaseModel):
     id: int
     producto: ProductoResumen
     cantidad: int
+    precio_unitario: Decimal
     entregado: bool
 
 
@@ -90,10 +113,24 @@ class ComandaRespuesta(BaseModel):
     cantidad_comensales: int
     fecha_hora_apertura: datetime
     fecha_hora_cierre: datetime | None
+    estado: EstadoComanda
+    motivo_anulacion: str | None = None
     abierta: bool
     mozo: MozoResumen
     mesas: list[MesaResumen]
     detalles: list[DetalleRespuesta]
+
+
+class MesaTableroOut(BaseModel):
+    """Mesa del salón con su estado operativo y comanda para el tablero (/mesas)."""
+
+    id: int
+    numero: int
+    capacidad: int
+    sector_id: int
+    sector_nombre: str
+    estado_mesa: str
+    comanda: ComandaRespuesta | None = None
 
 
 # HU-05f

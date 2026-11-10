@@ -1,10 +1,11 @@
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
-from datetime import date, datetime, time
-from app.core.enums import EstadoComanda
+from datetime import date, datetime, time, timedelta
+from app.core.enums import EstadoComanda, EstadoReserva
 from app.models.comandas import Comanda, comanda_mesa
 from app.models.personal import Mozo
+from app.models.reservas import Reserva, reserva_mesa
 from app.models.salon import Mesa
 from app.models.carta import Producto
 
@@ -77,3 +78,38 @@ class ComandaRepository:
         elif abierta is False:
             consulta = consulta.where(Comanda.estado != EstadoComanda.ABIERTA)
         return list(self.db.scalars(consulta))
+
+    # HU-06: Tablero operativo de mesas
+    def listar_mesas_activas(self) -> list[Mesa]:
+        consulta = (
+            select(Mesa)
+            .options(joinedload(Mesa.sector))
+            .where(Mesa.activo)
+            .order_by(Mesa.numero)
+        )
+        return list(self.db.scalars(consulta))
+
+    def comandas_en_curso(self) -> list[Comanda]:
+        consulta = (
+            select(Comanda)
+            .where(Comanda.estado.in_([EstadoComanda.ABIERTA, EstadoComanda.CERRADA]))
+            .order_by(Comanda.fecha_hora_apertura.desc())
+        )
+        return list(self.db.scalars(consulta))
+
+    def ids_mesas_reservadas_hoy(self, mesa_ids: list[int]) -> set[int]:
+        if not mesa_ids:
+            return set()
+        hoy = date.today()
+        desde = datetime.combine(hoy, time.min)
+        consulta = (
+            select(reserva_mesa.c.mesa_id)
+            .join(Reserva, Reserva.id == reserva_mesa.c.reserva_id)
+            .where(
+                reserva_mesa.c.mesa_id.in_(mesa_ids),
+                Reserva.estado == EstadoReserva.ACTIVA,
+                Reserva.fecha_hora >= desde,
+                Reserva.fecha_hora < desde + timedelta(days=1),
+            )
+        )
+        return set(self.db.scalars(consulta))

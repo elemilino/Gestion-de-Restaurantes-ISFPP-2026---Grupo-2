@@ -7,16 +7,28 @@ from app.core.enums import Rol
 from app.core.database import get_db
 from app.models.comandas import Comanda
 from app.modules.comandas.schemas import (
+    ComandaAnular,
     ComandaCrear,
     ComandaModificar,
     ComandaRespuesta,
     DetalleAgregar,
     DetalleCantidad,
+    DetalleEntrega,
     ComandaFiltros,
+    MesaTableroOut,
 )
 from app.modules.comandas.service import ComandaService
 
 router = APIRouter(dependencies=[Depends(require_roles(Rol.MOZO, Rol.ADMINISTRADOR))])
+
+
+@router.get(
+    "/tablero-mesas",
+    response_model=list[MesaTableroOut],
+    summary="Estado operativo de las mesas del salón y sus comandas (HU-06)",
+)
+def obtener_tablero_mesas(db: Session = Depends(get_db)) -> list[MesaTableroOut]:
+    return ComandaService(db).tablero_mesas()
 
 
 @router.post(
@@ -39,6 +51,15 @@ def listar_comandas(
     filtros: ComandaFiltros = Depends(), db: Session = Depends(get_db)
 ) -> list[Comanda]:
     return ComandaService(db).listar(filtros)
+
+
+@router.get(
+    "/{comanda_id}",
+    response_model=ComandaRespuesta,
+    summary="Obtener detalle de una comanda (HU-06)",
+)
+def obtener_comanda(comanda_id: int, db: Session = Depends(get_db)) -> Comanda:
+    return ComandaService(db).obtener(comanda_id)
 
 
 #
@@ -81,12 +102,38 @@ def cambiar_cantidad(
 @router.delete(
     "/{comanda_id}/detalles/{detalle_id}",
     response_model=ComandaRespuesta,
-    summary="Quitar producto de la comanda (HU-05b)",
+    summary="Quitar producto de la comanda (HU-05b / HU-06 CA2)",
 )
 def quitar_producto(
     comanda_id: int, detalle_id: int, db: Session = Depends(get_db)
 ) -> Comanda:
     return ComandaService(db).quitar_producto(comanda_id, detalle_id)
+
+
+# HU-06
+@router.patch(
+    "/{comanda_id}/detalles/{detalle_id}/entrega",
+    response_model=ComandaRespuesta,
+    summary="Registrar entrega de un producto en mesa (HU-06)",
+)
+def entregar_producto(
+    comanda_id: int,
+    detalle_id: int,
+    datos: DetalleEntrega = DetalleEntrega(),
+    db: Session = Depends(get_db),
+) -> Comanda:
+    return ComandaService(db).entregar_producto(comanda_id, detalle_id, datos.entregado)
+
+
+@router.post(
+    "/{comanda_id}/anulacion",
+    response_model=ComandaRespuesta,
+    summary="Anular comanda indicando el motivo (HU-06 CA3)",
+)
+def anular_comanda(
+    comanda_id: int, datos: ComandaAnular, db: Session = Depends(get_db)
+) -> Comanda:
+    return ComandaService(db).anular(comanda_id, datos)
 
 
 # HU-05c

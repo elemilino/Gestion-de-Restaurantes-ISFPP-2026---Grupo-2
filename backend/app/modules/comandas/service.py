@@ -8,10 +8,13 @@ from app.models.personal import Mozo
 from app.models.salon import Mesa
 from app.modules.comandas.repository import ComandaRepository
 from app.modules.comandas.schemas import (
+    ComandaAnular,
     ComandaCrear,
     ComandaModificar,
+    ComandaRespuesta,
     DetalleAgregar,
     ComandaFiltros,
+    MesaTableroOut,
 )
 
 
@@ -114,6 +117,94 @@ class ComandaService:
         comanda.detalles.remove(detalle)
         return self.comandas.guardar(comanda)
 
+    # ---------- HU-06 ----------
+    def obtener(self, comanda_id: int) -> Comanda:
+        """Obtiene una comanda por su ID."""
+        return self._buscar_comanda(comanda_id)
+
+    def entregar_producto(
+        self, comanda_id: int, detalle_id: int, entregado: bool = True
+    ) -> Comanda:
+        """HU-06: registra o actualiza la entrega en mesa de un ítem del pedido."""
+        comanda = self._comanda_modificable(comanda_id)
+        detalle = self._detalle(comanda, detalle_id)
+        detalle.entregado = entregado
+        return self.comandas.guardar(comanda)
+
+    def anular(self, comanda_id: int, datos: ComandaAnular) -> Comanda:
+        """HU-06 CA3: cancela la comanda abierta con motivo y pasa a ANULADA."""
+        comanda = self._buscar_comanda(comanda_id)
+        if comanda.estado == EstadoComanda.ANULADA:
+            raise ConflictError("La comanda ya está anulada", "COMANDA_YA_ANULADA")
+        if (
+            comanda.estado == EstadoComanda.FACTURADA
+            or getattr(comanda, "factura", None) is not None
+        ):
+            raise ConflictError(
+                "No se puede anular una comanda facturada", "COMANDA_FACTURADA"
+            )
+        if comanda.estado != EstadoComanda.ABIERTA:
+            raise ConflictError(
+                "No se puede anular una comanda cerrada", "COMANDA_CERRADA"
+            )
+        if any(d.entregado for d in comanda.detalles):
+            raise ConflictError(
+                "No se puede anular una comanda con productos entregados",
+                "COMANDA_CON_ENTREGAS",
+            )
+        comanda.estado = EstadoComanda.ANULADA
+        comanda.motivo_anulacion = datos.motivo
+        comanda.fecha_hora_cierre = datetime.now()
+        return self.comandas.guardar(comanda)
+
+    def tablero_mesas(self) -> list[MesaTableroOut]:
+        """HU-06: estado operativo de las mesas del salón y su comanda en curso."""
+        mesas = self.comandas.listar_mesas_activas()
+        ids = [m.id for m in mesas]
+        reservadas = self.comandas.ids_mesas_reservadas_hoy(ids)
+        en_curso = self.comandas.comandas_en_curso()
+
+        comanda_por_mesa: dict[int, Comanda] = {}
+        # Prioridad a comandas ABIERTAS sobre CERRADAS
+        for c in en_curso:
+            if c.estado == EstadoComanda.ABIERTA:
+                for m in c.mesas:
+                    comanda_por_mesa.setdefault(m.id, c)
+        for c in en_curso:
+            if c.estado == EstadoComanda.CERRADA:
+                for m in c.mesas:
+                    comanda_por_mesa.setdefault(m.id, c)
+
+        resultado: list[MesaTableroOut] = []
+        for m in mesas:
+            comanda = comanda_por_mesa.get(m.id)
+            if comanda is not None:
+                estado_mesa = (
+                    "ocupada"
+                    if comanda.estado == EstadoComanda.ABIERTA
+                    else "esperando_cobro"
+                )
+                comanda_out = ComandaRespuesta.model_validate(comanda)
+            elif m.id in reservadas:
+                estado_mesa = "reservada"
+                comanda_out = None
+            else:
+                estado_mesa = "libre"
+                comanda_out = None
+
+            resultado.append(
+                MesaTableroOut(
+                    id=m.id,
+                    numero=m.numero,
+                    capacidad=m.capacidad,
+                    sector_id=m.sector_id,
+                    sector_nombre=m.sector.nombre,
+                    estado_mesa=estado_mesa,
+                    comanda=comanda_out,
+                )
+            )
+        return resultado
+
         # ---------- HU-05c ----------
 
     def cerrar(self, comanda_id: int) -> Comanda:
@@ -147,6 +238,10 @@ class ComandaService:
         ):
             raise ConflictError(
                 "No se puede reabrir una comanda facturada", "COMANDA_FACTURADA"
+            )
+        if comanda.estado == EstadoComanda.ANULADA:
+            raise ConflictError(
+                "No se puede reabrir una comanda anulada", "COMANDA_ANULADA"
             )
         if comanda.estado == EstadoComanda.ABIERTA:
             raise ConflictError("La comanda ya está abierta", "COMANDA_YA_ABIERTA")
@@ -187,6 +282,10 @@ class ComandaService:
         ):
             raise ConflictError(
                 "No es posible modificar una comanda facturada", "COMANDA_FACTURADA"
+            )
+        if comanda.estado == EstadoComanda.ANULADA:
+            raise ConflictError(
+                "No es posible modificar una comanda anulada", "COMANDA_ANULADA"
             )
         if comanda.estado != EstadoComanda.ABIERTA:
             raise ConflictError(
