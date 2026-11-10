@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 
-import { ApiError } from '../../api/client'
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
 import { FilterChip } from '../../components/FilterChip'
@@ -8,22 +7,10 @@ import { Icon } from '../../components/Icon'
 import { StatusBadge } from '../../components/StatusBadge'
 import type { Tono } from '../../components/tonos'
 import { cambiarEstadoPromocion, listarPromociones } from './api'
+import { mensajeDeError } from './errores'
 import { PromocionForm } from './PromocionForm'
 import type { EstadoPromocion, FiltroPromocion, Promocion } from './types'
 import { estadoPromocion, formatearFecha } from './validaciones'
-
-function mensajeDe(e: unknown): string {
-  if (e instanceof ApiError) {
-    if (e.code === 'PROMOCION_YA_VENCIDA') {
-      return 'No se puede activar una promoción vencida.'
-    }
-    if (e.code === 'PROMOCION_SUPERPUESTA') {
-      return 'Ya existe una promoción activa para uno de esos productos en ese período.'
-    }
-    return e.message
-  }
-  return 'Ocurrió un error inesperado'
-}
 
 interface Filtro {
   valor: FiltroPromocion
@@ -74,7 +61,7 @@ export function PromocionesPage() {
       setPromociones(await listarPromociones())
       setErrorCarga(null)
     } catch (e) {
-      setErrorCarga(mensajeDe(e))
+      setErrorCarga(mensajeDeError(e))
     }
   }
 
@@ -82,7 +69,7 @@ export function PromocionesPage() {
     let montado = true
     listarPromociones()
       .then((lista) => montado && setPromociones(lista))
-      .catch((e) => montado && setErrorCarga(mensajeDe(e)))
+      .catch((e) => montado && setErrorCarga(mensajeDeError(e)))
       .finally(() => montado && setCargando(false))
     return () => {
       montado = false
@@ -120,7 +107,7 @@ export function PromocionesPage() {
           : `Promoción "${actualizada.descripcion}" desactivada`,
       )
     } catch (e) {
-      setErrorAccion(mensajeDe(e))
+      setErrorAccion(mensajeDeError(e))
     } finally {
       setCambiando(null)
     }
