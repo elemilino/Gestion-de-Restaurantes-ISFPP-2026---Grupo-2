@@ -6,13 +6,15 @@ terminan de hacer en Python (las tablas de la carta son chicas).
 """
 
 import unicodedata
+from datetime import date
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.enums import EstadoComanda, TipoProducto
+from app.core.enums import TIPOS_MENU, EstadoComanda, EstadoReserva, TipoProducto
 from app.models.carta import Producto, SeccionCarta
 from app.models.comandas import Comanda, DetalleComanda
+from app.models.reservas import DetalleMenuAcordado, MenuAcordado, Reserva
 
 
 def clave_nombre(texto: str) -> tuple[str, str]:
@@ -101,6 +103,9 @@ class ProductoRepository:
         consulta = select(Producto).where(Producto.activo)
         if tipo is not None:
             consulta = consulta.where(Producto.tipo == tipo)
+        else:
+            # Los menús tienen su propia pantalla (HU-09b).
+            consulta = consulta.where(Producto.tipo.not_in(TIPOS_MENU))
         if seccion_id is not None:
             consulta = consulta.where(Producto.seccion_id == seccion_id)
         return sorted(self.db.scalars(consulta), key=lambda p: clave_nombre(p.nombre))
@@ -138,6 +143,29 @@ class ProductoRepository:
             .where(
                 DetalleComanda.producto_id == producto_id,
                 Comanda.estado == EstadoComanda.ABIERTA,
+            )
+        )
+        return self.db.scalar(consulta) or 0
+
+    def menus_vigentes_con(self, producto_id: int) -> list[Producto]:
+        """Menús activos que todavía no vencieron y llevan el producto (HU-09b)."""
+        consulta = select(Producto).where(
+            Producto.activo,
+            Producto.tipo.in_(TIPOS_MENU),
+            Producto.fecha_fin >= date.today(),
+            or_(Producto.plato_id == producto_id, Producto.postre_id == producto_id),
+        )
+        return list(self.db.scalars(consulta))
+
+    def contar_reservas_activas_con(self, producto_id: int) -> int:
+        """Reservas ACTIVAS con el producto en su menú acordado (HU-11a)."""
+        consulta = (
+            select(func.count(func.distinct(Reserva.id)))
+            .join(MenuAcordado, MenuAcordado.reserva_id == Reserva.id)
+            .join(DetalleMenuAcordado, DetalleMenuAcordado.menu_id == MenuAcordado.id)
+            .where(
+                DetalleMenuAcordado.producto_id == producto_id,
+                Reserva.estado == EstadoReserva.ACTIVA,
             )
         )
         return self.db.scalar(consulta) or 0

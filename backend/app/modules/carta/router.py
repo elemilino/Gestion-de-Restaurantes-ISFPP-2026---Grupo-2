@@ -1,6 +1,6 @@
-"""Módulo carta: secciones, productos, stock y ver carta.
+"""Módulo carta: secciones, productos, stock, menús y ver carta.
 
-Lo completan: HU-03a, HU-03b, HU-04a, HU-04b, HU-04c, HU-04d.
+Lo completan: HU-03a, HU-03b, HU-04a, HU-04b, HU-04c, HU-04d y HU-09b.
 """
 
 from fastapi import APIRouter, Depends, Query, status
@@ -14,6 +14,9 @@ from app.modules.carta.schemas import (
     BebidaUpdate,
     CartaOut,
     DisponibilidadIn,
+    MenuDelDiaIn,
+    MenuEjecutivoIn,
+    MenuOut,
     PlatoCreate,
     PlatoUpdate,
     PostreCreate,
@@ -24,10 +27,13 @@ from app.modules.carta.schemas import (
     SeccionUpdate,
     StockIn,
 )
+from app.modules.carta.menus import MenuService
 from app.modules.carta.service import CartaService, ProductoService, SeccionService
 
 router = APIRouter()
 solo_admin = [Depends(require_roles(Rol.ADMINISTRADOR))]
+# HU-09b: los menús los arman el cocinero y el encargado general.
+menus = [Depends(require_roles(Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL, Rol.COCINERO))]
 con_sesion = [Depends(get_current_user)]
 
 
@@ -52,7 +58,10 @@ def ver_carta(
 @router.get(
     "/secciones",
     response_model=list[SeccionOut],
-    dependencies=solo_admin,
+    # Encargado general: filtro de HU-12b. Cocinero: arma menús (HU-09b).
+    dependencies=[
+        Depends(require_roles(Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL, Rol.COCINERO))
+    ],
     summary="Listar secciones de la carta",
 )
 def listar_secciones(db: Session = Depends(get_db)):
@@ -230,3 +239,74 @@ def modificar_bebida(
     producto_id: int, datos: BebidaUpdate, db: Session = Depends(get_db)
 ):
     return ProductoService(db).modificar(producto_id, TipoProducto.BEBIDA, datos)
+
+
+# --- Menús especiales (HU-09b) ---
+
+
+@router.get(
+    "/menus",
+    response_model=list[MenuOut],
+    dependencies=menus,
+    summary="Listar menús especiales (ejecutivo y del día)",
+)
+def listar_menus(
+    tipo: TipoProducto | None = Query(default=None), db: Session = Depends(get_db)
+):
+    return MenuService(db).listar(tipo)
+
+
+@router.post(
+    "/menus-ejecutivos",
+    response_model=MenuOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=menus,
+    summary="Crear menú ejecutivo: plato + postre (HU-09b)",
+)
+def crear_menu_ejecutivo(datos: MenuEjecutivoIn, db: Session = Depends(get_db)):
+    return MenuService(db).crear(TipoProducto.MENU_EJECUTIVO, datos)
+
+
+@router.put(
+    "/menus-ejecutivos/{menu_id}",
+    response_model=MenuOut,
+    dependencies=menus,
+    summary="Modificar menú ejecutivo (HU-09b)",
+)
+def modificar_menu_ejecutivo(
+    menu_id: int, datos: MenuEjecutivoIn, db: Session = Depends(get_db)
+):
+    return MenuService(db).modificar(menu_id, TipoProducto.MENU_EJECUTIVO, datos)
+
+
+@router.post(
+    "/menus-del-dia",
+    response_model=MenuOut,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=menus,
+    summary="Crear menú del día (HU-09b)",
+)
+def crear_menu_del_dia(datos: MenuDelDiaIn, db: Session = Depends(get_db)):
+    return MenuService(db).crear(TipoProducto.MENU_DEL_DIA, datos)
+
+
+@router.put(
+    "/menus-del-dia/{menu_id}",
+    response_model=MenuOut,
+    dependencies=menus,
+    summary="Modificar menú del día (HU-09b)",
+)
+def modificar_menu_del_dia(
+    menu_id: int, datos: MenuDelDiaIn, db: Session = Depends(get_db)
+):
+    return MenuService(db).modificar(menu_id, TipoProducto.MENU_DEL_DIA, datos)
+
+
+@router.delete(
+    "/menus/{menu_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=menus,
+    summary="Eliminar menú especial: baja lógica (HU-09b)",
+)
+def eliminar_menu(menu_id: int, db: Session = Depends(get_db)):
+    MenuService(db).eliminar(menu_id)

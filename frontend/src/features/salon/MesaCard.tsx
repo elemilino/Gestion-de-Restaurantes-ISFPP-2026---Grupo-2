@@ -3,7 +3,7 @@ import { Icon } from '../../components/Icon'
 import { StatusBadge } from '../../components/StatusBadge'
 import type { Tono } from '../../components/tonos'
 import { formatMoneda } from '../../lib/format'
-import type { EstadoMesa, MesaVista } from './mesas.mock'
+import type { EstadoMesa, MesaVista } from './mesaVista'
 
 interface Apariencia {
   tono: Tono

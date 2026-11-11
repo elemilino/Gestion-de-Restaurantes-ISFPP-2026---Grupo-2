@@ -10,6 +10,12 @@ export interface Seccion {
 
 export type TipoProducto = 'PLATO' | 'POSTRE' | 'BEBIDA'
 
+/** Menús especiales (HU-09b): en el diagrama, Menu hereda de Producto. */
+export type TipoMenu = 'MENU_EJECUTIVO' | 'MENU_DEL_DIA'
+
+/** Lo que puede aparecer en "Ver carta": productos y menús vigentes. */
+export type TipoCarta = TipoProducto | TipoMenu
+
 /** ProductoOut (HU-04a). `precio` es texto: el backend envía los Decimal como string. */
 export interface Producto {
   id: number
@@ -49,7 +55,7 @@ export interface ProductoCarta {
   nombre: string
   descripcion: string | null
   precio: string
-  tipo: TipoProducto
+  tipo: TipoCarta
   porcion_gramos: number | null
   volumen_ml: number | null
   alcoholica: boolean | null
@@ -67,4 +73,33 @@ export interface SeccionCarta {
 /** CartaOut (HU-03b). */
 export interface Carta {
   secciones: SeccionCarta[]
+}
+
+/** MenuOut (HU-09b). */
+export interface Menu {
+  id: number
+  nombre: string
+  descripcion: string | null
+  precio: string
+  tipo: TipoMenu
+  seccion_id: number
+  disponible: boolean
+  disponible_efectivo: boolean
+  fecha_inicio: string
+  fecha_fin: string
+  plato: { id: number; nombre: string }
+  postre: { id: number; nombre: string } | null
+  vigente: boolean
+}
+
+/** MenuEjecutivoIn / MenuDelDiaIn. */
+export interface MenuDatos {
+  nombre: string
+  descripcion: string | null
+  precio: string
+  seccion_id: number
+  plato_id: number
+  postre_id?: number
+  fecha_inicio: string
+  fecha_fin: string
 }

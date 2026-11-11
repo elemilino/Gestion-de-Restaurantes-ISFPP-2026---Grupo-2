@@ -1,9 +1,12 @@
 """Reglas de negocio del módulo clientes (HU-10)."""
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.enums import EstadoReserva
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
 from app.models.clientes import Cliente
+from app.models.reservas import Reserva
 from app.modules.clientes.repository import ClienteRepository
 from app.modules.clientes.schemas import ClienteCreate, ClienteOut, ClienteUpdate
 
@@ -70,12 +73,19 @@ class ClienteService:
         return ClienteOut.model_validate(cliente)
 
     def eliminar(self, cliente_id: int) -> None:
-        """CA5: baja lógica del cliente.
-
-        TODO(HU-11): CA6, bloquear la baja si el cliente tiene reservas
-        activas. Se completa cuando exista el modelo `Reserva`.
-        """
+        """CA5: baja lógica del cliente. CA6: no si tiene reservas activas."""
         cliente = self._obtener(cliente_id)
+        activas = self.db.scalar(
+            select(func.count(Reserva.id)).where(
+                Reserva.cliente_id == cliente.id,
+                Reserva.estado == EstadoReserva.ACTIVA,
+            )
+        )
+        if activas:
+            raise ConflictError(
+                "No se puede eliminar el cliente: posee reservas asociadas",
+                "CLIENTE_CON_RESERVAS",
+            )
         cliente.activo = False
         self.db.commit()
 

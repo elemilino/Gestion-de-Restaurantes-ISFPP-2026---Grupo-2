@@ -75,3 +75,14 @@ class ComprobanteOut(BaseModel):
     monto_recibido: Decimal
     vuelto: Decimal
     detalles_pago: list[DetallePagoOut]
+
+
+class ComandaPorFacturar(BaseModel):
+    """Comanda cerrada que todavía no tiene factura (pantalla de caja)."""
+
+    comanda_id: int
+    fecha_hora_cierre: datetime | None
+    mesas: list[int]
+    mozo: str
+    cantidad_comensales: int
+    importe: Decimal

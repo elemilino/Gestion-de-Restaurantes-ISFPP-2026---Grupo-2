@@ -101,6 +101,8 @@ MENSAJE_DUPLICADO = {
     TipoProducto.PLATO: "Ya existe un plato con ese nombre",
     TipoProducto.POSTRE: "Ya existe un postre con ese nombre",
     TipoProducto.BEBIDA: "Ya existe una bebida con ese nombre y volumen",
+    TipoProducto.MENU_EJECUTIVO: "Ya existe un menú ejecutivo con ese nombre",
+    TipoProducto.MENU_DEL_DIA: "Ya existe un menú del día con ese nombre",
 }
 
 
@@ -175,10 +177,13 @@ class ProductoService:
         comandas = self.productos.contar_comandas_abiertas(producto.id)
         if comandas > 0:
             motivos.append(f"está en {comandas} comandas abiertas")
-        # TODO(HU-09b): menú ejecutivo o del día vigente
+        for menu in self.productos.menus_vigentes_con(producto.id):  # HU-09b
+            motivos.append(f"está en el menú vigente {menu.nombre}")
         if PromocionRepository(self.db).buscar_vigente_por_producto(producto.id):
             motivos.append("está en una promoción vigente")
-        # TODO(HU-11a): menú acordado de una reserva activa
+        reservas = self.productos.contar_reservas_activas_con(producto.id)  # HU-11a
+        if reservas > 0:
+            motivos.append(f"está en el menú acordado de {reservas} reservas activas")
         return motivos
 
     def _validar_seccion(self, seccion_id: int) -> None:
@@ -295,7 +300,8 @@ class CartaService:
         for producto in self.productos.listar_activos_de_secciones(
             [s.id for s in secciones]
         ):
-            por_seccion.setdefault(producto.seccion_id, []).append(producto)
+            if producto.vigente:  # HU-09b: los menús, solo dentro de su vigencia
+                por_seccion.setdefault(producto.seccion_id, []).append(producto)
 
         return CartaOut(
             secciones=[

@@ -9,6 +9,7 @@ from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
 from app.models.facturacion import DetallePago, Factura
 from app.modules.facturacion.repository import FacturacionRepository
 from app.modules.facturacion.schemas import (
+    ComandaPorFacturar,
     CobroCreate,
     ComprobanteOut,
     DetallePagoOut,
@@ -26,6 +27,22 @@ class FacturacionService:
     def listar_facturas(self) -> list[FacturaOut]:
         facturas = self.repo.listar_facturas()
         return [self._a_factura_out(f) for f in facturas]
+
+    def comandas_por_facturar(self) -> list[ComandaPorFacturar]:
+        """Comandas cerradas sin factura, con su importe (para HU-08a)."""
+        return [
+            ComandaPorFacturar(
+                comanda_id=c.id,
+                fecha_hora_cierre=c.fecha_hora_cierre,
+                mesas=sorted(m.numero for m in c.mesas),
+                mozo=f"{c.mozo.nombre} {c.mozo.apellido}",
+                cantidad_comensales=c.cantidad_comensales,
+                importe=sum(
+                    (d.cantidad * d.precio_unitario for d in c.detalles), Decimal("0")
+                ),
+            )
+            for c in self.repo.comandas_por_facturar()
+        ]
 
     def obtener_factura(self, factura_id: int) -> FacturaOut:
         factura = self._obtener_entidad_factura(factura_id)

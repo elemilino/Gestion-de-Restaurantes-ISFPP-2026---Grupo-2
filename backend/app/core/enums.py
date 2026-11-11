@@ -8,16 +8,28 @@ from enum import StrEnum
 
 
 class Rol(StrEnum):
+    """Lista cerrada de actores (acuerdo del grupo del 04/11)."""
+
     ADMINISTRADOR = "ADMINISTRADOR"
     MOZO = "MOZO"
     CAJERO = "CAJERO"
     RECEPCIONISTA = "RECEPCIONISTA"
+    # HU-09a/b y HU-12a–f (reportes).
+    ENCARGADO_GENERAL = "ENCARGADO_GENERAL"
+    # HU-09b (menús especiales).
+    COCINERO = "COCINERO"
 
 
 class TipoProducto(StrEnum):
     PLATO = "PLATO"
     POSTRE = "POSTRE"
     BEBIDA = "BEBIDA"
+    # HU-09b: Menu hereda de Producto (diagrama de clases).
+    MENU_EJECUTIVO = "MENU_EJECUTIVO"
+    MENU_DEL_DIA = "MENU_DEL_DIA"
+
+
+TIPOS_MENU = (TipoProducto.MENU_EJECUTIVO, TipoProducto.MENU_DEL_DIA)
 
 
 class EstadoComanda(StrEnum):
@@ -30,14 +42,15 @@ class EstadoComanda(StrEnum):
 
 
 class EstadoReserva(StrEnum):
-    """Estados de la reserva. Provisorios: los define HU-11a.
+    """Estados de la reserva (HU-11a/b y diagrama de clases).
 
-    HU-01b solo usa ACTIVA (las reservas activas bloquean cambios en sus mesas).
+    HU-01b usa ACTIVA: las reservas activas bloquean cambios en sus mesas.
     """
 
     ACTIVA = "ACTIVA"
+    CUMPLIDA = "CUMPLIDA"
     CANCELADA = "CANCELADA"
-    FINALIZADA = "FINALIZADA"
+    AUSENTE = "AUSENTE"
 
 
 class TipoAcreditacion(StrEnum):

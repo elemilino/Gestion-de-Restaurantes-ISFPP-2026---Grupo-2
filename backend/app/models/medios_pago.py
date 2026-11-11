@@ -21,4 +21,3 @@ class MedioPago(Base):
         Numeric(5, 2), default=Decimal("0.00")
     )
     activo: Mapped[bool] = mapped_column(default=True)
-

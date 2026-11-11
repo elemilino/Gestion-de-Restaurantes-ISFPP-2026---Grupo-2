@@ -7,18 +7,30 @@ from app.core.enums import EstadoComanda
 
 
 class ComandaCrear(BaseModel):
-    """Lo que envía el mozo al crear una comanda (HU-05a)."""
+    """Lo que envía el mozo al crear una comanda (HU-05a).
+
+    Con `reserva_id` (CA8) las mesas y los comensales salen de la reserva.
+    """
 
     dni_mozo: str = Field(min_length=7, max_length=8, pattern=r"^\d+$")
-    cantidad_comensales: int = Field(gt=0)
-    numeros_mesa: list[int] = Field(min_length=1)
+    cantidad_comensales: int | None = Field(default=None, gt=0)
+    numeros_mesa: list[int] | None = Field(default=None, min_length=1)
+    reserva_id: int | None = None
 
     @field_validator("numeros_mesa")
     @classmethod
-    def sin_mesas_repetidas(cls, valor: list[int]) -> list[int]:
-        if len(set(valor)) != len(valor):
+    def sin_mesas_repetidas(cls, valor: list[int] | None) -> list[int] | None:
+        if valor is not None and len(set(valor)) != len(valor):
             raise ValueError("No se puede repetir una mesa en la misma comanda")
         return valor
+
+    @model_validator(mode="after")
+    def mesas_y_comensales_o_reserva(self) -> "ComandaCrear":
+        if self.reserva_id is None and (
+            self.cantidad_comensales is None or self.numeros_mesa is None
+        ):
+            raise ValueError("Indicá la cantidad de comensales y las mesas")
+        return self
 
 
 class ComandaModificar(BaseModel):
@@ -115,6 +127,7 @@ class ComandaRespuesta(BaseModel):
     fecha_hora_cierre: datetime | None
     estado: EstadoComanda
     motivo_anulacion: str | None = None
+    reserva_id: int | None = None
     abierta: bool
     mozo: MozoResumen
     mesas: list[MesaResumen]

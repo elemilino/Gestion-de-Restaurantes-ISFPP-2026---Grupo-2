@@ -10,12 +10,13 @@ interface Pestania {
 
 /**
  * Pestañas de /configuracion (toda la sección es solo para Administrador).
- * Para sumar una (ej. Medios de pago, HU-07), agregarla acá y su ruta en App.tsx.
+ * Para sumar una, agregarla acá y su ruta en App.tsx.
  */
 const PESTANIAS: Pestania[] = [
   { ruta: '/configuracion/mozos', etiqueta: 'Mozos', icono: 'badge' },
   { ruta: '/configuracion/sectores', etiqueta: 'Sectores', icono: 'floor' },
   { ruta: '/configuracion/mesas', etiqueta: 'Mesas', icono: 'table_restaurant' },
+  { ruta: '/configuracion/medios-pago', etiqueta: 'Medios de pago', icono: 'credit_card' },
 ]
 
 /** Encabezado "Configuración" con pestañas; debajo, la página de la subruta. */

@@ -6,6 +6,7 @@ from app.core.enums import EstadoComanda, Rol, TipoProducto
 from app.models.carta import Producto, SeccionCarta
 
 from app.models.comandas import Comanda, DetalleComanda, comanda_mesa
+from app.models.facturacion import Factura
 from app.models.personal import Mozo
 from app.models.salon import Mesa, Sector
 
@@ -322,9 +323,35 @@ def test_hu05b_ca5_comanda_cerrada_bloquea_toda_modificacion(
         assert r.json()["code"] == "COMANDA_CERRADA"
 
 
-@pytest.mark.skip(reason="Pendiente: HU-08a agrega la relación Comanda–Factura")
-def test_hu05b_ca6_comanda_facturada_bloquea_modificacion():
-    """Completar cuando exista Factura: esperar 409 con code COMANDA_FACTURADA."""
+def _facturar(db, comanda_id) -> Factura:
+    """Genera una factura Adeudada para la comanda, como hace HU-08a."""
+    factura = Factura(
+        comanda_id=comanda_id,
+        importe_total=Decimal("1000.00"),
+        total_a_pagar=Decimal("1000.00"),
+    )
+    db.add(factura)
+    db.commit()
+    db.expire_all()
+    return factura
+
+
+def test_hu05b_ca6_comanda_facturada_bloquea_modificacion(
+    db, client, comanda_id, crear_producto
+):
+    producto = crear_producto()
+    detalle_id = _agregar(client, comanda_id, producto.id).json()["detalles"][0]["id"]
+    _entregar_todo(db, comanda_id)
+    assert _cerrar_comanda(client, comanda_id).status_code == 200
+    _facturar(db, comanda_id)
+    respuestas = [
+        _agregar(client, comanda_id, producto.id),
+        client.patch(f"{URL}/{comanda_id}/detalles/{detalle_id}", json={"cantidad": 3}),
+        client.patch(f"{URL}/{comanda_id}", json={"cantidad_comensales": 3}),
+    ]
+    for r in respuestas:
+        assert r.status_code == 409
+        assert r.json()["code"] == "COMANDA_FACTURADA"
 
 
 def test_hu05b_ca7_producto_inexistente(client, comanda_id):
@@ -634,9 +661,15 @@ def test_hu05d_reabierta_permite_modificar_y_conserva_entregas(
     assert entregados == {"Milanesa": True, "Flan": False}
 
 
-@pytest.mark.skip(reason="Pendiente: HU-08a agrega la relación Comanda–Factura")
-def test_hu05d_ca2_comanda_facturada_no_se_reabre():
-    """Completar cuando exista Factura: esperar 409 con code COMANDA_FACTURADA."""
+def test_hu05d_ca2_comanda_facturada_no_se_reabre(
+    db, client, headers, comanda_cerrada_id
+):
+    # La factura está Adeudada: la comanda sigue CERRADA hasta el cobro.
+    _facturar(db, comanda_cerrada_id)
+    client.headers.update(headers(Rol.ADMINISTRADOR))
+    r = _reabrir(client, comanda_cerrada_id)
+    assert r.status_code == 409
+    assert r.json()["code"] == "COMANDA_FACTURADA"
 
 
 def test_hu05d_comanda_ya_abierta(client, headers, comanda_id):

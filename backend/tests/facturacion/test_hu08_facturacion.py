@@ -389,3 +389,24 @@ def test_hu08_permisos_mozo_bloqueado(client, headers, db, datos_prueba):
     payload = {"comanda_id": comanda.id}
     r = client.post(URL_FACTURACION, json=payload, headers=headers(Rol.MOZO))
     assert r.status_code == 403
+
+
+def test_hu08a_comandas_por_facturar(client, headers, db, datos_prueba):
+    """La caja ve las comandas cerradas que todavía no tienen factura."""
+    pendiente = _crear_comanda_con_detalles(db, datos_prueba)
+    facturada = _crear_comanda_con_detalles(db, datos_prueba)
+    _crear_comanda_con_detalles(db, datos_prueba, estado=EstadoComanda.ABIERTA)
+    client.post(
+        URL_FACTURACION,
+        json={"comanda_id": facturada.id},
+        headers=headers(Rol.CAJERO),
+    )
+
+    r = client.get(
+        f"{URL_FACTURACION}/comandas-por-facturar", headers=headers(Rol.CAJERO)
+    )
+
+    assert r.status_code == 200
+    assert [c["comanda_id"] for c in r.json()] == [pendiente.id]
+    assert Decimal(r.json()[0]["importe"]) == Decimal("11500.00")
+    assert r.json()[0]["mesas"] == [datos_prueba["mesa"].numero]

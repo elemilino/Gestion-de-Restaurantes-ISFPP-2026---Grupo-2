@@ -94,4 +94,3 @@ class MedioPagoService:
                 code="MEDIO_PAGO_NO_ENCONTRADO",
             )
         return medio
-

@@ -1,11 +1,14 @@
 from sqlalchemy.orm import Session
 from datetime import datetime
 
-from app.core.enums import EstadoComanda
+from app.core.enums import EstadoComanda, EstadoReserva
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
 from app.models.comandas import Comanda, DetalleComanda
 from app.models.personal import Mozo
+from app.models.reservas import Reserva
+from app.models.carta import Producto
 from app.models.salon import Mesa
+from app.modules.carta.service import ProductoService
 from app.modules.comandas.repository import ComandaRepository
 from app.modules.comandas.schemas import (
     ComandaAnular,
@@ -20,15 +23,29 @@ from app.modules.comandas.schemas import (
 
 class ComandaService:
     def __init__(self, db: Session):
+        self.db = db
         self.comandas = ComandaRepository(db)
+        # HU-04d: disponibilidad y stock los maneja el módulo carta.
+        self.carta = ProductoService(db)
 
     # ---------- HU-05a ----------
     def crear(self, datos: ComandaCrear) -> Comanda:
-        """HU-05a: crea una comanda abierta para un mozo y una o más mesas."""
+        """HU-05a: crea una comanda abierta para un mozo y una o más mesas.
+
+        CA8: si viene de una reserva Cumplida, usa sus mesas y comensales y carga
+        su menú acordado con el precio acordado.
+        """
         mozo = self._validar_mozo(datos.dni_mozo)
-        mesas = self._validar_mesas(datos.numeros_mesa)
+        reserva = None
+        if datos.reserva_id is not None:
+            reserva = self._reserva_para_comanda(datos.reserva_id)
+            mesas = list(reserva.mesas)
+            comensales = reserva.cantidad_comensales
+        else:
+            mesas = self._validar_mesas(datos.numeros_mesa)
+            comensales = datos.cantidad_comensales
         self._validar_sector(mesas, mozo)
-        self._validar_capacidad(datos.cantidad_comensales, mesas)
+        self._validar_capacidad(comensales, mesas)
 
         ocupadas = self.comandas.numeros_de_mesas_ocupadas(mesas)
         if ocupadas:
@@ -37,9 +54,43 @@ class ComandaService:
             )
 
         comanda = Comanda(
-            cantidad_comensales=datos.cantidad_comensales, mozo=mozo, mesas=mesas
+            cantidad_comensales=comensales, mozo=mozo, mesas=mesas, reserva=reserva
         )
+        if reserva is not None and reserva.menu_acordado is not None:
+            self._cargar_menu_acordado(comanda, reserva)
         return self.comandas.guardar(comanda)
+
+    def _reserva_para_comanda(self, reserva_id: int) -> Reserva:
+        reserva = self.db.get(Reserva, reserva_id)
+        if reserva is None:
+            raise NotFoundError("La reserva no existe", "RESERVA_NO_ENCONTRADA")
+        if reserva.estado != EstadoReserva.CUMPLIDA:
+            raise BusinessRuleError(
+                "La reserva no está Cumplida: primero registrá la llegada del cliente",
+                "RESERVA_NO_CUMPLIDA",
+            )
+        if reserva.comanda is not None:
+            raise ConflictError(
+                "La reserva ya tiene una comanda", "RESERVA_CON_COMANDA"
+            )
+        return reserva
+
+    def _cargar_menu_acordado(self, comanda: Comanda, reserva: Reserva) -> None:
+        """HU-05a CA8: los platos del menú acordado entran con el precio acordado."""
+        por_producto: dict[int, DetalleComanda] = {}
+        for item in reserva.menu_acordado.detalles:
+            self._verificar_disponible(item.producto)
+            self.carta.descontar_stock(item.producto, item.cantidad)
+            detalle = por_producto.get(item.producto_id)
+            if detalle is None:
+                por_producto[item.producto_id] = DetalleComanda(
+                    producto=item.producto,
+                    cantidad=item.cantidad,
+                    precio_unitario=item.precio,
+                )
+            else:
+                detalle.cantidad += item.cantidad
+        comanda.detalles.extend(por_producto.values())
 
     # ---------- HU-05b ----------
     def modificar(self, comanda_id: int, datos: ComandaModificar) -> Comanda:
@@ -71,6 +122,10 @@ class ComandaService:
                 "No es posible agregar el producto: no existe o está eliminado",
                 "PRODUCTO_NO_DISPONIBLE",
             )
+        # HU-04d CA1, CA3 y CA4: no se carga si está marcado no disponible o si
+        # no alcanza el stock; si lo controla, se descuenta al cargarlo.
+        self._verificar_disponible(producto)
+        self.carta.descontar_stock(producto, datos.cantidad)
 
         existente = next(
             (d for d in comanda.detalles if d.producto_id == producto.id), None
@@ -102,6 +157,13 @@ class ComandaService:
                 )
             if cantidad > detalle.cantidad:
                 detalle.entregado = False  # las unidades nuevas aún no se entregaron
+        # HU-04d: más unidades descuentan stock; menos unidades lo reponen.
+        diferencia = cantidad - detalle.cantidad
+        if diferencia > 0:
+            self._verificar_disponible(detalle.producto)
+            self.carta.descontar_stock(detalle.producto, diferencia)
+        elif diferencia < 0:
+            self.carta.reponer_stock(detalle.producto, -diferencia)
         detalle.cantidad = cantidad
         return self.comandas.guardar(comanda)
 
@@ -114,6 +176,7 @@ class ComandaService:
                 "No es posible quitar un producto que ya fue entregado",
                 "DETALLE_ENTREGADO",
             )
+        self.carta.reponer_stock(detalle.producto, detalle.cantidad)  # HU-04d
         comanda.detalles.remove(detalle)
         return self.comandas.guardar(comanda)
 
@@ -152,6 +215,7 @@ class ComandaService:
                 "No se puede anular una comanda con productos entregados",
                 "COMANDA_CON_ENTREGAS",
             )
+        self._reponer_todo(comanda)  # HU-04d: nada se entregó, vuelve al stock
         comanda.estado = EstadoComanda.ANULADA
         comanda.motivo_anulacion = datos.motivo
         comanda.fecha_hora_cierre = datetime.now()
@@ -263,6 +327,7 @@ class ComandaService:
                 "No se puede eliminar una comanda con productos entregados",
                 "COMANDA_CON_ENTREGAS",
             )
+        self._reponer_todo(comanda)  # HU-04d: nada se entregó, vuelve al stock
         self.comandas.eliminar(comanda)
 
     # ---------- validaciones compartidas ----------
@@ -294,6 +359,25 @@ class ComandaService:
         return comanda
 
     #
+
+    @staticmethod
+    def _verificar_disponible(producto: Producto) -> None:
+        """HU-04d CA1: un producto marcado no disponible no se puede cargar.
+
+        Un menú especial (HU-09b) solo se carga mientras está vigente.
+        """
+        if not producto.disponible:
+            raise BusinessRuleError(
+                f"{producto.nombre} no está disponible", "PRODUCTO_NO_DISPONIBLE"
+            )
+        if not producto.vigente:
+            raise BusinessRuleError(
+                f"El menú {producto.nombre} no está vigente", "PRODUCTO_NO_DISPONIBLE"
+            )
+
+    def _reponer_todo(self, comanda: Comanda) -> None:
+        for detalle in comanda.detalles:
+            self.carta.reponer_stock(detalle.producto, detalle.cantidad)
 
     @staticmethod
     def _detalle(comanda: Comanda, detalle_id: int) -> DetalleComanda:

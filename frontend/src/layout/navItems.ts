@@ -12,21 +12,24 @@ export interface NavItem {
   responsable: string
 }
 
-const TODOS = [Rol.ADMINISTRADOR, Rol.MOZO]
+const SALON = [Rol.ADMINISTRADOR, Rol.MOZO]
+const CARTA = [Rol.ADMINISTRADOR, Rol.MOZO, Rol.ENCARGADO_GENERAL, Rol.COCINERO]
+const RECEPCION = [Rol.ADMINISTRADOR, Rol.RECEPCIONISTA]
+const CAJA = [Rol.ADMINISTRADOR, Rol.CAJERO]
+const HISTORIAL = [Rol.ADMINISTRADOR, Rol.MOZO]
+const GESTION = [Rol.ADMINISTRADOR, Rol.ENCARGADO_GENERAL]
 const ADMIN = [Rol.ADMINISTRADOR]
-const CLIENTES = [Rol.ADMINISTRADOR, Rol.RECEPCIONISTA]
 
 /**
  * Menú lateral (mismo orden que el prototipo de Stitch).
- * Los roles son provisorios: cuando una HU agregue su rol (Cajero, Recepcionista...),
- * lo suma en el ítem que corresponda.
+ * Cada ítem lista los roles que pueden entrar, según el actor de sus HU.
  */
 export const navItems: NavItem[] = [
   {
     ruta: '/mesas',
     etiqueta: 'Mesas',
     icono: 'table_restaurant',
-    roles: TODOS,
+    roles: SALON,
     hu: 'HU-01b, HU-05, HU-11b',
     responsable: 'Emi / Gaston',
   },
@@ -34,7 +37,7 @@ export const navItems: NavItem[] = [
     ruta: '/carta',
     etiqueta: 'Carta y Menú',
     icono: 'restaurant_menu',
-    roles: TODOS,
+    roles: CARTA,
     hu: 'HU-03a/b, HU-04a–d, HU-09a/b',
     responsable: 'Juan / Gonza',
   },
@@ -42,7 +45,7 @@ export const navItems: NavItem[] = [
     ruta: '/reservas',
     etiqueta: 'Reservas',
     icono: 'event_seat',
-    roles: ADMIN,
+    roles: RECEPCION,
     hu: 'HU-11a, HU-11b',
     responsable: 'Emi',
   },
@@ -50,7 +53,7 @@ export const navItems: NavItem[] = [
     ruta: '/clientes',
     etiqueta: 'Clientes',
     icono: 'badge',
-    roles: CLIENTES,
+    roles: RECEPCION,
     hu: 'HU-10',
     responsable: 'Gonza',
   },
@@ -58,7 +61,7 @@ export const navItems: NavItem[] = [
     ruta: '/caja',
     etiqueta: 'Caja',
     icono: 'point_of_sale',
-    roles: ADMIN,
+    roles: CAJA,
     hu: 'HU-08a, HU-08b',
     responsable: 'Cris',
   },
@@ -66,7 +69,7 @@ export const navItems: NavItem[] = [
     ruta: '/historial',
     etiqueta: 'Historial',
     icono: 'receipt_long',
-    roles: TODOS,
+    roles: HISTORIAL,
     hu: 'HU-05f',
     responsable: 'Gaston',
   },
@@ -74,9 +77,9 @@ export const navItems: NavItem[] = [
     ruta: '/reportes',
     etiqueta: 'Reportes',
     icono: 'query_stats',
-    roles: ADMIN,
-    hu: 'Reportes (a definir)',
-    responsable: 'A definir',
+    roles: GESTION,
+    hu: 'HU-12a–f',
+    responsable: 'Juan',
   },
   {
     ruta: '/configuracion',
