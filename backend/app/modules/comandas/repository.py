@@ -23,14 +23,17 @@ class ComandaRepository:
         return list(self.db.scalars(consulta))
 
     def numeros_de_mesas_ocupadas(self, mesas: list[Mesa]) -> list[int]:
-        """Mesas que están en alguna comanda sin fecha de cierre."""
+        """Mesas con una comanda en curso (abierta o cerrada sin cobrar).
+
+        La mesa se libera cuando la comanda pasa a FACTURADA o ANULADA.
+        """
         consulta = (
             select(Mesa.numero)
             .join(comanda_mesa, comanda_mesa.c.mesa_id == Mesa.id)
             .join(Comanda, Comanda.id == comanda_mesa.c.comanda_id)
             .where(
                 Mesa.id.in_([m.id for m in mesas]),
-                Comanda.estado == EstadoComanda.ABIERTA,
+                Comanda.estado.in_([EstadoComanda.ABIERTA, EstadoComanda.CERRADA]),
             )
         )
         return sorted(self.db.scalars(consulta))
