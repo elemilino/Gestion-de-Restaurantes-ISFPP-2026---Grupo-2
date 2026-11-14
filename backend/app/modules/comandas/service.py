@@ -155,13 +155,12 @@ class ComandaService:
                     "No es posible reducir la cantidad de un producto ya entregado",
                     "DETALLE_ENTREGADO",
                 )
-            if cantidad > detalle.cantidad:
-                detalle.entregado = False  # las unidades nuevas aún no se entregaron
         # HU-04d: más unidades descuentan stock; menos unidades lo reponen.
         diferencia = cantidad - detalle.cantidad
         if diferencia > 0:
             self._verificar_disponible(detalle.producto)
             self.carta.descontar_stock(detalle.producto, diferencia)
+            detalle.entregado = False  # las unidades nuevas aún no se entregaron
         elif diferencia < 0:
             self.carta.reponer_stock(detalle.producto, -diferencia)
         detalle.cantidad = cantidad
@@ -199,10 +198,7 @@ class ComandaService:
         comanda = self._buscar_comanda(comanda_id)
         if comanda.estado == EstadoComanda.ANULADA:
             raise ConflictError("La comanda ya está anulada", "COMANDA_YA_ANULADA")
-        if (
-            comanda.estado == EstadoComanda.FACTURADA
-            or getattr(comanda, "factura", None) is not None
-        ):
+        if comanda.estado == EstadoComanda.FACTURADA or comanda.factura is not None:
             raise ConflictError(
                 "No se puede anular una comanda facturada", "COMANDA_FACTURADA"
             )
@@ -272,7 +268,9 @@ class ComandaService:
         # ---------- HU-05c ----------
 
     def cerrar(self, comanda_id: int) -> Comanda:
-        """HU-05c: cierra la comanda registrando la fecha y hora de cierre."""
+        """HU-05c: cierra la comanda registrando la fecha y hora de cierre
+        y estado Cerrada.
+        """
         comanda = self._buscar_comanda(comanda_id)
         if comanda.estado != EstadoComanda.ABIERTA:
             raise ConflictError("La comanda ya está cerrada", "COMANDA_YA_CERRADA")
@@ -296,10 +294,7 @@ class ComandaService:
     def reabrir(self, comanda_id: int) -> Comanda:
         """HU-05d: vuelve a abrir una comanda cerrada y no facturada."""
         comanda = self._buscar_comanda(comanda_id)
-        if (
-            comanda.estado == EstadoComanda.FACTURADA
-            or getattr(comanda, "factura", None) is not None
-        ):
+        if comanda.estado == EstadoComanda.FACTURADA or comanda.factura is not None:
             raise ConflictError(
                 "No se puede reabrir una comanda facturada", "COMANDA_FACTURADA"
             )
@@ -341,10 +336,7 @@ class ComandaService:
 
     def _comanda_modificable(self, comanda_id: int) -> Comanda:
         comanda = self._buscar_comanda(comanda_id)
-        if (
-            comanda.estado == EstadoComanda.FACTURADA
-            or getattr(comanda, "factura", None) is not None
-        ):
+        if comanda.estado == EstadoComanda.FACTURADA or comanda.factura is not None:
             raise ConflictError(
                 "No es posible modificar una comanda facturada", "COMANDA_FACTURADA"
             )

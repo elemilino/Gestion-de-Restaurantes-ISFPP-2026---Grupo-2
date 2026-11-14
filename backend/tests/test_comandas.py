@@ -194,15 +194,18 @@ def test_hu05a_mesa_ocupada(client, crear_mozo, crear_mesa):
     assert r.json()["code"] == "MESA_OCUPADA"
 
 
-def test_hu05a_mesa_vuelve_a_estar_libre_al_cerrar(db, client, crear_mozo, crear_mesa):
-    from datetime import datetime
+def test_hu05a_mesa_cerrada_sigue_ocupada_hasta_facturar(
+    db, client, comanda_id, crear_producto
+):
+    _agregar(client, comanda_id, crear_producto().id)
+    _entregar_todo(db, comanda_id)
+    _cerrar_comanda(client, comanda_id)
 
-    crear_mozo()
-    crear_mesa(numero=1)
-    id_comanda = client.post(URL, json=_datos()).json()["id"]
-    comanda = db.get(Comanda, id_comanda)
-    comanda.estado = EstadoComanda.CERRADA
-    comanda.fecha_hora_cierre = datetime.now()
+    r = client.post(URL, json=_datos())
+    assert r.status_code == 409
+    assert r.json()["code"] == "MESA_OCUPADA"
+
+    db.get(Comanda, comanda_id).estado = EstadoComanda.FACTURADA
     db.commit()
     assert client.post(URL, json=_datos()).status_code == 201
 
@@ -574,17 +577,6 @@ def test_hu05c_el_cierre_bloquea_modificaciones(db, client, comanda_id, crear_pr
     assert r.json()["code"] == "COMANDA_CERRADA"
 
 
-def test_hu05c_regla_vigente_el_cierre_libera_la_mesa(
-    db, client, comanda_id, crear_producto
-):
-    """Depende de la decisión del grupo (liberar al cerrar o al facturar)."""
-    producto = crear_producto()
-    _agregar(client, comanda_id, producto.id)
-    _entregar_todo(db, comanda_id)
-    _cerrar_comanda(client, comanda_id)
-    assert client.post(URL, json=_datos()).status_code == 201  # mesa 1 libre
-
-
 def test_hu05c_ca2_comanda_ya_cerrada(db, client, comanda_id, crear_producto):
     producto = crear_producto()
     _agregar(client, comanda_id, producto.id)
@@ -843,3 +835,19 @@ def test_hu05f_las_eliminadas_no_aparecen(client, dos_comandas):
 def test_hu05f_listar_sin_sesion_devuelve_401(client):
     client.headers.pop("Authorization")
     assert _listar(client).status_code == 401
+
+
+def test_hu06_anular_comanda_con_factura_adeudada_bloqueada(
+    db, client, comanda_cerrada_id
+):
+    # La factura está Adeudada: la comanda sigue CERRADA hasta el cobro.
+    _facturar(db, comanda_cerrada_id)
+    r = client.post(
+        f"{URL}/{comanda_cerrada_id}/anulacion",
+        json={"motivo": "Error de carga"},
+    )
+    assert r.status_code == 409
+    assert r.json()["code"] == "COMANDA_FACTURADA"
+    comanda = db.get(Comanda, comanda_cerrada_id)
+    assert comanda.estado == EstadoComanda.CERRADA
+    assert comanda.motivo_anulacion is None
