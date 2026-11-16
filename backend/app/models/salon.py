@@ -28,6 +28,8 @@ class Mesa(Base):
     numero: Mapped[int]
     capacidad: Mapped[int]
     sector_id: Mapped[int] = mapped_column(ForeignKey("sector.id"))
+    pos_x: Mapped[int | None] = mapped_column(nullable=True, default=None)
+    pos_y: Mapped[int | None] = mapped_column(nullable=True, default=None)
     activo: Mapped[bool] = mapped_column(default=True)
 
     sector: Mapped[Sector] = relationship(back_populates="mesas")

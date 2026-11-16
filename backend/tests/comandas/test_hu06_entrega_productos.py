@@ -309,3 +309,33 @@ def test_hu06_tablero_mesas_refleja_estados_del_salon(client, escenario):
     r_final = client.get(f"{URL}/tablero-mesas")
     assert r_final.json()[0]["estado_mesa"] == "libre"
     assert r_final.json()[0]["comanda"] is None
+
+
+def test_hu06_tablero_filtra_por_sector_y_actualiza_posicion_en_plano(
+    db, client, escenario
+):
+    terraza = Sector(nombre="Terraza", activo=True)
+    db.add(terraza)
+    db.flush()
+    mesa_terraza = Mesa(numero=9, capacidad=2, sector_id=terraza.id, activo=True)
+    db.add(mesa_terraza)
+    db.commit()
+
+    # Sectores del tablero
+    r_sectores = client.get(f"{URL}/sectores-tablero")
+    assert r_sectores.status_code == 200
+    assert [s["nombre"] for s in r_sectores.json()] == ["Salón Principal", "Terraza"]
+
+    # Filtrar tablero por sector
+    r_filtrado = client.get(f"{URL}/tablero-mesas", params={"sector_id": terraza.id})
+    assert r_filtrado.status_code == 200
+    assert [m["numero"] for m in r_filtrado.json()] == [9]
+
+    # Actualizar posición (x, y) de la mesa en el plano
+    r_pos = client.patch(
+        f"{URL}/mesas/{mesa_terraza.id}/posicion",
+        json={"pos_x": 320, "pos_y": 140},
+    )
+    assert r_pos.status_code == 200
+    assert r_pos.json()["pos_x"] == 320
+    assert r_pos.json()["pos_y"] == 140

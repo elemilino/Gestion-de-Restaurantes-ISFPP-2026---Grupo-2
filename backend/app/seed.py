@@ -77,16 +77,52 @@ def seed_salon(db) -> dict[str, Sector]:
         sectores[nombre] = s
     db.flush()
 
-    # Mesas de prueba vinculadas a sectores
-    m1 = Mesa(
-        numero=1, capacidad=4, sector_id=sectores["Salón Principal"].id, activo=True
-    )
-    m2 = Mesa(
-        numero=2, capacidad=2, sector_id=sectores["Salón Principal"].id, activo=True
-    )
-    m3 = Mesa(numero=3, capacidad=6, sector_id=sectores["Terraza"].id, activo=True)
-    m4 = Mesa(numero=4, capacidad=4, sector_id=sectores["Patio"].id, activo=True)
-    db.add_all([m1, m2, m3, m4])
+    # 12 mesas en Salón Principal (2 filas de 6 mesas)
+    numeros_salon = [1, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+    caps_salon = [4, 2, 4, 4, 2, 6, 4, 2, 4, 6, 4, 8]
+    mesas_salon = [
+        Mesa(
+            numero=num,
+            capacidad=cap,
+            sector_id=sectores["Salón Principal"].id,
+            pos_x=48 + (i % 6) * 130,
+            pos_y=64 + (i // 6) * 135,
+            activo=True,
+        )
+        for i, (num, cap) in enumerate(zip(numeros_salon, caps_salon))
+    ]
+
+    # 8 mesas en Terraza (2 filas de 4 mesas; incluye la mesa 3 usada en reservas)
+    numeros_terraza = [3, 15, 16, 17, 18, 19, 20, 21]
+    caps_terraza = [6, 2, 4, 4, 2, 4, 6, 4]
+    mesas_terraza = [
+        Mesa(
+            numero=num,
+            capacidad=cap,
+            sector_id=sectores["Terraza"].id,
+            pos_x=60 + (i % 4) * 150,
+            pos_y=64 + (i // 4) * 135,
+            activo=True,
+        )
+        for i, (num, cap) in enumerate(zip(numeros_terraza, caps_terraza))
+    ]
+
+    # 8 mesas en Patio (2 filas de 4 mesas; incluye la mesa 4 usada en reservas)
+    numeros_patio = [4, 22, 23, 24, 25, 26, 27, 28]
+    caps_patio = [4, 2, 4, 6, 4, 2, 4, 6]
+    mesas_patio = [
+        Mesa(
+            numero=num,
+            capacidad=cap,
+            sector_id=sectores["Patio"].id,
+            pos_x=60 + (i % 4) * 150,
+            pos_y=64 + (i // 4) * 135,
+            activo=True,
+        )
+        for i, (num, cap) in enumerate(zip(numeros_patio, caps_patio))
+    ]
+
+    db.add_all(mesas_salon + mesas_terraza + mesas_patio)
     db.flush()
     return sectores
 

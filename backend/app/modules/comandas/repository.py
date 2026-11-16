@@ -6,7 +6,7 @@ from app.core.enums import EstadoComanda, EstadoReserva
 from app.models.comandas import Comanda, comanda_mesa
 from app.models.personal import Mozo
 from app.models.reservas import Reserva, reserva_mesa
-from app.models.salon import Mesa
+from app.models.salon import Mesa, Sector
 from app.models.carta import Producto
 
 
@@ -83,14 +83,30 @@ class ComandaRepository:
         return list(self.db.scalars(consulta))
 
     # HU-06: Tablero operativo de mesas
-    def listar_mesas_activas(self) -> list[Mesa]:
+    def listar_sectores_activos(self) -> list[Sector]:
+        consulta = select(Sector).where(Sector.activo).order_by(Sector.id)
+        return list(self.db.scalars(consulta))
+
+    def listar_mesas_activas(self, sector_id: int | None = None) -> list[Mesa]:
         consulta = (
             select(Mesa)
             .options(joinedload(Mesa.sector))
             .where(Mesa.activo)
             .order_by(Mesa.numero)
         )
+        if sector_id is not None:
+            consulta = consulta.where(Mesa.sector_id == sector_id)
         return list(self.db.scalars(consulta))
+
+    def obtener_mesa_activa(self, mesa_id: int) -> Mesa | None:
+        mesa = self.db.get(Mesa, mesa_id)
+        return mesa if mesa is not None and mesa.activo else None
+
+    def guardar_mesa(self, mesa: Mesa) -> Mesa:
+        self.db.add(mesa)
+        self.db.commit()
+        self.db.refresh(mesa)
+        return mesa
 
     def comandas_en_curso(self) -> list[Comanda]:
         consulta = (

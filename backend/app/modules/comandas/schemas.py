@@ -142,8 +142,24 @@ class MesaTableroOut(BaseModel):
     capacidad: int
     sector_id: int
     sector_nombre: str
+    pos_x: int | None = None
+    pos_y: int | None = None
     estado_mesa: str
     comanda: ComandaRespuesta | None = None
+
+
+class MesaPosicionIn(BaseModel):
+    """Coordenadas (x, y) de una mesa en el plano del salón."""
+
+    pos_x: int = Field(ge=0, le=2000)
+    pos_y: int = Field(ge=0, le=2000)
+
+
+class SectorTableroOut(BaseModel):
+    """Sector activo del salón para el selector del tablero."""
+
+    id: int
+    nombre: str
 
 
 # HU-05f

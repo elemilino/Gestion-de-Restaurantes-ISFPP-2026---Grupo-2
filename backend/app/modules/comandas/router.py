@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import require_roles
@@ -15,7 +15,9 @@ from app.modules.comandas.schemas import (
     DetalleCantidad,
     DetalleEntrega,
     ComandaFiltros,
+    MesaPosicionIn,
     MesaTableroOut,
+    SectorTableroOut,
 )
 from app.modules.comandas.service import ComandaService
 
@@ -23,12 +25,34 @@ router = APIRouter(dependencies=[Depends(require_roles(Rol.MOZO, Rol.ADMINISTRAD
 
 
 @router.get(
+    "/sectores-tablero",
+    response_model=list[SectorTableroOut],
+    summary="Listar sectores activos para el tablero de mesas",
+)
+def listar_sectores_tablero(db: Session = Depends(get_db)) -> list[SectorTableroOut]:
+    return ComandaService(db).listar_sectores_tablero()
+
+
+@router.get(
     "/tablero-mesas",
     response_model=list[MesaTableroOut],
     summary="Estado operativo de las mesas del salón y sus comandas (HU-06)",
 )
-def obtener_tablero_mesas(db: Session = Depends(get_db)) -> list[MesaTableroOut]:
-    return ComandaService(db).tablero_mesas()
+def obtener_tablero_mesas(
+    sector_id: int | None = Query(default=None), db: Session = Depends(get_db)
+) -> list[MesaTableroOut]:
+    return ComandaService(db).tablero_mesas(sector_id=sector_id)
+
+
+@router.patch(
+    "/mesas/{mesa_id}/posicion",
+    response_model=MesaTableroOut,
+    summary="Actualizar posición (x, y) de una mesa en el plano del salón",
+)
+def mover_mesa(
+    mesa_id: int, datos: MesaPosicionIn, db: Session = Depends(get_db)
+) -> MesaTableroOut:
+    return ComandaService(db).mover_mesa(mesa_id, datos)
 
 
 @router.post(

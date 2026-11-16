@@ -17,7 +17,9 @@ from app.modules.comandas.schemas import (
     ComandaRespuesta,
     DetalleAgregar,
     ComandaFiltros,
+    MesaPosicionIn,
     MesaTableroOut,
+    SectorTableroOut,
 )
 
 
@@ -217,9 +219,27 @@ class ComandaService:
         comanda.fecha_hora_cierre = datetime.now()
         return self.comandas.guardar(comanda)
 
-    def tablero_mesas(self) -> list[MesaTableroOut]:
+    def listar_sectores_tablero(self) -> list[SectorTableroOut]:
+        """Sectores activos para el selector del tablero de salón."""
+        return [
+            SectorTableroOut(id=s.id, nombre=s.nombre)
+            for s in self.comandas.listar_sectores_activos()
+        ]
+
+    def mover_mesa(self, mesa_id: int, datos: MesaPosicionIn) -> MesaTableroOut:
+        """Actualiza la posición (x, y) de una mesa en el plano de su sector."""
+        mesa = self.comandas.obtener_mesa_activa(mesa_id)
+        if mesa is None:
+            raise NotFoundError(f"No existe la mesa {mesa_id}", "MESA_INEXISTENTE")
+        mesa.pos_x = datos.pos_x
+        mesa.pos_y = datos.pos_y
+        self.comandas.guardar_mesa(mesa)
+        mesas_tablero = self.tablero_mesas(sector_id=mesa.sector_id)
+        return next(m for m in mesas_tablero if m.id == mesa_id)
+
+    def tablero_mesas(self, sector_id: int | None = None) -> list[MesaTableroOut]:
         """HU-06: estado operativo de las mesas del salón y su comanda en curso."""
-        mesas = self.comandas.listar_mesas_activas()
+        mesas = self.comandas.listar_mesas_activas(sector_id=sector_id)
         ids = [m.id for m in mesas]
         reservadas = self.comandas.ids_mesas_reservadas_hoy(ids)
         en_curso = self.comandas.comandas_en_curso()
@@ -259,6 +279,8 @@ class ComandaService:
                     capacidad=m.capacidad,
                     sector_id=m.sector_id,
                     sector_nombre=m.sector.nombre,
+                    pos_x=m.pos_x,
+                    pos_y=m.pos_y,
                     estado_mesa=estado_mesa,
                     comanda=comanda_out,
                 )
