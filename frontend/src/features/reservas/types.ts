@@ -40,7 +40,7 @@ export interface ItemMenu {
 export interface ReservaDatos {
   fecha: string
   hora: string
-  duracion_horas: number
+  duracion_horas?: number
   cantidad_comensales: number
   numeros_mesa: number[]
   cliente_id: number

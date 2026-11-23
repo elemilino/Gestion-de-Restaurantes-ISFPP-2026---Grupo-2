@@ -25,6 +25,7 @@ export function VerCartaPage() {
   const [carta, setCarta] = useState<Carta | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [seccionElegida, setSeccionElegida] = useState<number | null>(null)
+  const [soloPromociones, setSoloPromociones] = useState(false)
   const [busqueda, setBusqueda] = useState('')
 
   useEffect(() => {
@@ -55,11 +56,23 @@ export function VerCartaPage() {
   }
 
   const texto = normalizar(busqueda)
+  const cantidadEnPromocion = carta.secciones.reduce(
+    (total, s) =>
+      total +
+      s.productos.filter(
+        (p) => p.descuento_porcentaje != null && Number(p.descuento_porcentaje) > 0,
+      ).length,
+    0,
+  )
   const visibles = carta.secciones
     .filter((s) => seccionElegida === null || s.id === seccionElegida)
     .map((s) => ({
       ...s,
-      productos: s.productos.filter((p) => normalizar(p.nombre).includes(texto)),
+      productos: s.productos.filter((p) => {
+        const coincideTexto = normalizar(p.nombre).includes(texto)
+        const tienePromo = p.descuento_porcentaje != null && Number(p.descuento_porcentaje) > 0
+        return coincideTexto && (!soloPromociones || tienePromo)
+      }),
     }))
     .filter((s) => s.productos.length > 0)
 
@@ -82,6 +95,13 @@ export function VerCartaPage() {
               onClick={() => setSeccionElegida(s.id)}
             />
           ))}
+          <FilterChip
+            etiqueta="En promoción"
+            tono="libre"
+            cantidad={cantidadEnPromocion}
+            activo={soloPromociones}
+            onClick={() => setSoloPromociones((prev) => !prev)}
+          />
         </div>
         <div className="relative w-full sm:w-64">
           <Icon

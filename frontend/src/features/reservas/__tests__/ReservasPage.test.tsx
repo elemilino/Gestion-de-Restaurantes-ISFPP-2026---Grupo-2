@@ -98,13 +98,14 @@ describe('ReservasPage', () => {
     expect(listarReservas).toHaveBeenLastCalledWith({ estado: 'AUSENTE' })
   })
 
-  it('HU-11a CA1: crea una reserva con seña', async () => {
+  it('HU-11a CA1: crea una reserva con seña, filtrando por espacio y sin campo duración', async () => {
     vi.mocked(crearReserva).mockResolvedValue({ ...RESERVA, id: 9 })
     render(<ReservasPage />)
     await screen.findByText('Gómez, Laura')
     fireEvent.click(screen.getByRole('button', { name: /Nueva reserva/ }))
     const dialogo = await screen.findByRole('dialog', { name: 'Nueva reserva' })
     const form = within(dialogo)
+    expect(form.queryByLabelText(/Duración/i)).not.toBeInTheDocument()
     fireEvent.change(await form.findByLabelText('Cliente'), { target: { value: '1' } })
     fireEvent.change(form.getByLabelText('Fecha'), { target: { value: '2026-11-20' } })
     fireEvent.change(form.getByLabelText('Comensales'), { target: { value: '4' } })
@@ -114,7 +115,6 @@ describe('ReservasPage', () => {
     expect(crearReserva).toHaveBeenCalledWith({
       fecha: '2026-11-20',
       hora: '21:00',
-      duracion_horas: 2,
       cantidad_comensales: 4,
       numeros_mesa: [1],
       cliente_id: 1,
@@ -122,6 +122,54 @@ describe('ReservasPage', () => {
       sena: { monto: '5000', medio_pago_id: 1 },
     })
     expect(await screen.findByText('Reserva #9 creada')).toBeInTheDocument()
+  })
+
+  it('filtra mesas por Espacio y oculta mesas ya reservadas en la misma fecha y hora', async () => {
+    vi.mocked(listarMesas).mockResolvedValue([
+      {
+        id: 1,
+        numero: 1,
+        capacidad: 4,
+        sector_id: 1,
+        sector_nombre: 'Salón',
+        disponibilidad: 'LIBRE',
+      },
+      {
+        id: 2,
+        numero: 2,
+        capacidad: 2,
+        sector_id: 1,
+        sector_nombre: 'Salón',
+        disponibilidad: 'LIBRE',
+      },
+      {
+        id: 3,
+        numero: 3,
+        capacidad: 4,
+        sector_id: 2,
+        sector_nombre: 'Terraza',
+        disponibilidad: 'LIBRE',
+      },
+    ])
+    render(<ReservasPage />)
+    await screen.findByText('Gómez, Laura')
+    fireEvent.click(screen.getByRole('button', { name: /Nueva reserva/ }))
+    const dialogo = await screen.findByRole('dialog', { name: 'Nueva reserva' })
+    const form = within(dialogo)
+
+    // Por defecto muestra Salón (Mesas 1 y 2) y no Terraza (Mesa 3)
+    expect(await form.findByLabelText(/Mesa 1 ·/)).toBeInTheDocument()
+    expect(form.getByLabelText(/Mesa 2 ·/)).toBeInTheDocument()
+    expect(form.queryByLabelText(/Mesa 3 ·/)).not.toBeInTheDocument()
+
+    // Si elegimos la fecha 2026-11-11 y hora 21:00 (donde RESERVA ocupa la Mesa 1), Mesa 1 desaparece
+    fireEvent.change(form.getByLabelText('Fecha'), { target: { value: '2026-11-11' } })
+    expect(await form.findByLabelText(/Mesa 2 ·/)).toBeInTheDocument()
+    expect(form.queryByLabelText(/Mesa 1 ·/)).not.toBeInTheDocument()
+
+    // Si cambiamos al espacio Terraza, muestra Mesa 3
+    fireEvent.change(form.getByLabelText('Espacio'), { target: { value: '2' } })
+    expect(await form.findByLabelText(/Mesa 3 ·/)).toBeInTheDocument()
   })
 
   it('HU-11b CA1: registra la llegada', async () => {

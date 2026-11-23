@@ -116,4 +116,36 @@ describe('VerCartaPage', () => {
     fireEvent.change(buscador, { target: { value: 'milanesa' } })
     expect(screen.getByText('No hay productos que coincidan con la búsqueda')).toBeInTheDocument()
   })
+
+  it('muestra precio original tachado, precio con descuento y filtra productos en promoción', async () => {
+    vi.mocked(verCarta).mockResolvedValue({
+      secciones: [
+        {
+          id: 1,
+          nombre: 'Pastas',
+          orden: 1,
+          productos: [
+            producto({
+              id: 2,
+              nombre: 'Ñoquis con salsa',
+              precio: '5000.00',
+              descuento_porcentaje: '20.00',
+              precio_final: '4000.00',
+              promocion_descripcion: 'Martes de pastas',
+            }),
+            producto({ id: 3, nombre: 'Ravioles', precio: '4500.00' }),
+          ],
+        },
+      ],
+    })
+
+    render(<VerCartaPage />)
+    const noquis = await screen.findByRole('article', { name: 'Ñoquis con salsa' })
+    expect(within(noquis).getByLabelText('Precio original')).toHaveTextContent('$ 5.000')
+    expect(within(noquis).getByLabelText('Precio con descuento')).toHaveTextContent('$ 4.000')
+
+    fireEvent.click(screen.getByRole('button', { name: /En promoción/ }))
+    expect(screen.getByText('Ñoquis con salsa')).toBeInTheDocument()
+    expect(screen.queryByText('Ravioles')).not.toBeInTheDocument()
+  })
 })

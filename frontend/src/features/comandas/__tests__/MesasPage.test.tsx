@@ -68,4 +68,68 @@ describe('MesasPage (tablero con datos reales)', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Ver comanda/ }))
     expect(await screen.findByRole('dialog', { name: 'Comanda #7' })).toBeInTheDocument()
   })
+
+  it('oculta la acción de "Facturar" al perfil Mozo en mesas esperando cobro', async () => {
+    vi.mocked(tableroMesas).mockResolvedValue([
+      {
+        ...TABLERO[0],
+        estado_mesa: 'esperando_cobro',
+        comanda: { ...COMANDA, estado: 'CERRADA', abierta: false },
+      },
+    ])
+    renderComo(Rol.MOZO, <MesasPage />)
+    await screen.findByText('Mozo: Ana R.')
+    expect(screen.queryByRole('button', { name: /Facturar/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Ver comanda/i })).toBeInTheDocument()
+  })
+
+  it('permite a Admin y Cajero filtrar mesas por salón/sector o ver Todos, mientras el Mozo solo ve su sector', async () => {
+    const mesasMultiSector = [
+      ...TABLERO,
+      {
+        id: 3,
+        numero: 3,
+        capacidad: 6,
+        sector_id: 2,
+        sector_nombre: 'Terraza',
+        estado_mesa: 'libre' as const,
+        comanda: null,
+      },
+    ]
+    vi.mocked(tableroMesas).mockResolvedValue(mesasMultiSector)
+
+    renderComo(Rol.ADMINISTRADOR, <MesasPage />)
+    expect(await screen.findByText('Disponible · Terraza')).toBeInTheDocument()
+    expect(screen.getByText('Disponible · Salón Principal')).toBeInTheDocument()
+
+    // Filtra solo Terraza
+    fireEvent.click(screen.getByRole('button', { name: /Terraza/ }))
+    expect(screen.getByText('Disponible · Terraza')).toBeInTheDocument()
+    expect(screen.queryByText('Disponible · Salón Principal')).not.toBeInTheDocument()
+
+    // Vuelve a Todos
+    fireEvent.click(screen.getByRole('button', { name: /Todos/ }))
+    expect(screen.getByText('Disponible · Salón Principal')).toBeInTheDocument()
+  })
+
+  it('prioriza en el filtro "Todas" las mesas reservadas para hoy mostrándolas primero', async () => {
+    vi.mocked(tableroMesas).mockResolvedValue([
+      ...TABLERO,
+      {
+        id: 5,
+        numero: 5,
+        capacidad: 4,
+        sector_id: 1,
+        sector_nombre: 'Salón Principal',
+        estado_mesa: 'reservada',
+        comanda: null,
+      },
+    ])
+
+    renderComo(Rol.ADMINISTRADOR, <MesasPage />)
+    await screen.findByText('Registrar llegada')
+    const articulos = screen.getAllByRole('article')
+    expect(articulos[0]).toHaveTextContent('05')
+    expect(articulos[0]).toHaveTextContent('Reservada')
+  })
 })

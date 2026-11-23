@@ -48,8 +48,16 @@ function duracion(minutos: number): string {
   return minutos < 60 ? `${minutos} min` : `${Math.floor(minutos / 60)}h ${minutos % 60}m`
 }
 
-/** Tarjeta de mesa del salón (prototipo de Stitch). La acción depende del estado. */
-export function MesaCard({ mesa, onAccion }: { mesa: MesaVista; onAccion?: () => void }) {
+/** Tarjeta de mesa del salón (prototipo de Stitch). La acción depende del estado y rol. */
+export function MesaCard({
+  mesa,
+  onAccion,
+  puedeFacturar = false,
+}: {
+  mesa: MesaVista
+  onAccion?: () => void
+  puedeFacturar?: boolean
+}) {
   const a = APARIENCIA[mesa.estado]
   const conComanda = mesa.estado === 'ocupada' || mesa.estado === 'esperando_cobro'
 
@@ -161,11 +169,21 @@ export function MesaCard({ mesa, onAccion }: { mesa: MesaVista; onAccion?: () =>
             Ver comanda
           </Button>
         )}
-        {mesa.estado === 'esperando_cobro' && (
-          <Button icono="point_of_sale" className="w-full" onClick={onAccion}>
-            Facturar
-          </Button>
-        )}
+        {mesa.estado === 'esperando_cobro' &&
+          (puedeFacturar ? (
+            <Button icono="point_of_sale" className="w-full" onClick={onAccion}>
+              Facturar
+            </Button>
+          ) : (
+            <Button
+              variante="secundario"
+              icono="receipt_long"
+              className="w-full"
+              onClick={onAccion}
+            >
+              Ver comanda
+            </Button>
+          ))}
         {mesa.estado === 'reservada' && (
           <Button variante="reserva" icono="how_to_reg" className="w-full" onClick={onAccion}>
             Registrar llegada

@@ -12,7 +12,7 @@ export interface NavItem {
   responsable: string
 }
 
-const SALON = [Rol.ADMINISTRADOR, Rol.MOZO]
+const SALON = [Rol.ADMINISTRADOR, Rol.MOZO, Rol.CAJERO]
 const CARTA = [Rol.ADMINISTRADOR, Rol.MOZO, Rol.ENCARGADO_GENERAL, Rol.COCINERO]
 const RECEPCION = [Rol.ADMINISTRADOR, Rol.RECEPCIONISTA]
 const CAJA = [Rol.ADMINISTRADOR, Rol.CAJERO]

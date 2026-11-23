@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Alert } from '../../components/Alert'
 import { Button } from '../../components/Button'
@@ -15,10 +15,15 @@ import { listarClientes } from '../clientes/api'
 import type { Cliente } from '../clientes/types'
 import { listarMesas } from '../salon/api'
 import type { Mesa } from '../salon/types'
-import { crearReserva, modificarReserva } from './api'
+import { crearReserva, listarReservas, modificarReserva } from './api'
 import type { Reserva, ReservaDatos } from './types'
 
 const INPUT = CLASE_INPUT.replace('h-12', 'h-10')
+
+const HORAS_OPERATIVAS = Array.from(
+  { length: 14 },
+  (_, i) => `${String(10 + i).padStart(2, '0')}:00`,
+)
 
 interface Linea {
   producto: string
@@ -41,11 +46,13 @@ export function ReservaForm({
   const [mesas, setMesas] = useState<Mesa[]>([])
   const [medios, setMedios] = useState<MedioPago[]>([])
   const [platos, setPlatos] = useState<ProductoCarta[]>([])
+  const [reservasDelDia, setReservasDelDia] = useState<Reserva[]>([])
 
   const [cliente, setCliente] = useState(reserva?.cliente ? String(reserva.cliente.id) : '')
   const [fecha, setFecha] = useState(reserva?.fecha ?? '')
-  const [hora, setHora] = useState(reserva?.hora.slice(0, 5) ?? '21:00')
-  const [duracion, setDuracion] = useState(String(reserva?.duracion_horas ?? 2))
+  const horaInicial = reserva ? `${reserva.hora.slice(0, 2)}:00` : '21:00'
+  const [hora, setHora] = useState(HORAS_OPERATIVAS.includes(horaInicial) ? horaInicial : '21:00')
+  const [sectorId, setSectorId] = useState<string>('')
   const [comensales, setComensales] = useState(String(reserva?.cantidad_comensales ?? 2))
   const [elegidas, setElegidas] = useState<number[]>(reserva?.mesas.map((m) => m.numero) ?? [])
   const [monto, setMonto] = useState('')
@@ -66,7 +73,16 @@ export function ReservaForm({
       .then((c) => vigente && setClientes(c))
       .catch(() => vigente && setClientes([]))
     listarMesas()
-      .then((m) => vigente && setMesas(m))
+      .then((m) => {
+        if (!vigente) return
+        setMesas(m)
+        if (m.length > 0) {
+          const mesaReserva = reserva?.mesas[0]
+            ? m.find((x) => x.numero === reserva.mesas[0].numero)
+            : undefined
+          setSectorId(String(mesaReserva ? mesaReserva.sector_id : m[0].sector_id))
+        }
+      })
       .catch(() => vigente && setMesas([]))
     listarMediosPago(true)
       .then((m) => {
@@ -85,21 +101,96 @@ export function ReservaForm({
     return () => {
       vigente = false
     }
-  }, [])
+  }, [reserva])
 
-  const capacidad = mesas
-    .filter((m) => elegidas.includes(m.numero))
+  useEffect(() => {
+    if (!fecha) return
+    let vigente = true
+    listarReservas({ fecha, estado: 'ACTIVA' })
+      .then((lista) => {
+        if (!vigente) return
+        setReservasDelDia(Array.isArray(lista) ? lista : [])
+      })
+      .catch(() => {
+        if (vigente) setReservasDelDia([])
+      })
+    return () => {
+      vigente = false
+    }
+  }, [fecha])
+
+  const sectores = useMemo(
+    () =>
+      Array.from(
+        new Map(
+          mesas.map((m) => [m.sector_id, { id: m.sector_id, nombre: m.sector_nombre }]),
+        ).values(),
+      ),
+    [mesas],
+  )
+
+  const mesasOcupadasEnHorario = useMemo(() => {
+    const ocupadas = new Set<number>()
+    if (!fecha || !hora) return ocupadas
+    const inicioSel = Number(hora.slice(0, 2))
+    const finSel = inicioSel + 1
+    for (const r of reservasDelDia) {
+      if (reserva && r.id === reserva.id) continue
+      if (r.fecha !== fecha || r.estado !== 'ACTIVA') continue
+      const inicioR = Number(r.hora.slice(0, 2))
+      const finR = inicioR + (r.duracion_horas || 1)
+      if (inicioR < finSel && inicioSel < finR) {
+        for (const m of r.mesas) {
+          ocupadas.add(m.numero)
+        }
+      }
+    }
+    return ocupadas
+  }, [fecha, hora, reservasDelDia, reserva])
+
+  const mesasDisponibles = useMemo(
+    () =>
+      mesas.filter(
+        (m) =>
+          (!sectorId || String(m.sector_id) === sectorId) && !mesasOcupadasEnHorario.has(m.numero),
+      ),
+    [mesas, sectorId, mesasOcupadasEnHorario],
+  )
+
+  const elegidasDisponibles = useMemo(() => {
+    if (mesas.length === 0) return elegidas
+    const disponiblesSet = new Set(mesasDisponibles.map((m) => m.numero))
+    return elegidas.filter((n) => disponiblesSet.has(n))
+  }, [mesas.length, mesasDisponibles, elegidas])
+
+  const capacidadSector = mesasDisponibles.reduce((s, m) => s + m.capacidad, 0)
+  const capacidad = mesasDisponibles
+    .filter((m) => elegidasDisponibles.includes(m.numero))
     .reduce((s, m) => s + m.capacidad, 0)
+  const numComensales = Number(comensales) || 0
+  const excedeSector = mesasDisponibles.length > 0 && numComensales > capacidadSector
+  const excedeMesas = elegidasDisponibles.length > 0 && numComensales > capacidad
 
   async function guardar() {
+    if (excedeSector) {
+      setError(
+        `La cantidad de comensales (${numComensales}) supera la capacidad máxima disponible del espacio (${capacidadSector} lugares).`,
+      )
+      return
+    }
+    if (excedeMesas) {
+      setError(
+        `Las mesas elegidas tienen ${capacidad} lugares: faltan ${numComensales - capacidad} para ${numComensales} comensales.`,
+      )
+      return
+    }
     setGuardando(true)
     setError(null)
     const datos: ReservaDatos = {
       fecha,
       hora,
-      duracion_horas: Number(duracion),
-      cantidad_comensales: Number(comensales),
-      numeros_mesa: elegidas,
+      cantidad_comensales: numComensales,
+      numeros_mesa: elegidasDisponibles,
       cliente_id: Number(cliente),
       menu_acordado: menu
         .filter((l) => l.producto)
@@ -138,7 +229,14 @@ export function ReservaForm({
           <Button
             icono="event_available"
             onClick={guardar}
-            disabled={guardando || !cliente || !fecha || elegidas.length === 0}
+            disabled={
+              guardando ||
+              !cliente ||
+              !fecha ||
+              elegidasDisponibles.length === 0 ||
+              excedeSector ||
+              excedeMesas
+            }
           >
             Guardar reserva
           </Button>
@@ -147,6 +245,18 @@ export function ReservaForm({
     >
       <div className="flex flex-col gap-4">
         {error && <Alert tono="error">{error}</Alert>}
+        {excedeSector && (
+          <Alert tono="error">
+            La cantidad de comensales ({numComensales}) supera la capacidad máxima disponible del
+            espacio seleccionado ({capacidadSector} lugares).
+          </Alert>
+        )}
+        {!excedeSector && excedeMesas && (
+          <Alert tono="error">
+            La cantidad de comensales ({numComensales}) supera la capacidad de las mesas
+            seleccionadas ({capacidad} lugares).
+          </Alert>
+        )}
         <Field
           label="Cliente"
           htmlFor="reserva-cliente"
@@ -167,6 +277,23 @@ export function ReservaForm({
           </select>
         </Field>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <Field label="Espacio" htmlFor="reserva-espacio">
+            <select
+              id="reserva-espacio"
+              className={INPUT}
+              value={sectorId}
+              onChange={(e) => {
+                setSectorId(e.target.value)
+                setElegidas([])
+              }}
+            >
+              {sectores.map((s) => (
+                <option key={s.id} value={String(s.id)}>
+                  {s.nombre}
+                </option>
+              ))}
+            </select>
+          </Field>
           <Field label="Fecha" htmlFor="reserva-fecha">
             <input
               id="reserva-fecha"
@@ -177,24 +304,18 @@ export function ReservaForm({
             />
           </Field>
           <Field label="Hora" htmlFor="reserva-hora">
-            <input
+            <select
               id="reserva-hora"
-              type="time"
               className={INPUT}
               value={hora}
               onChange={(e) => setHora(e.target.value)}
-            />
-          </Field>
-          <Field label="Duración (h)" htmlFor="reserva-duracion">
-            <input
-              id="reserva-duracion"
-              type="number"
-              min={1}
-              max={12}
-              className={INPUT}
-              value={duracion}
-              onChange={(e) => setDuracion(e.target.value)}
-            />
+            >
+              {HORAS_OPERATIVAS.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
           </Field>
           <Field label="Comensales" htmlFor="reserva-comensales">
             <input
@@ -209,26 +330,32 @@ export function ReservaForm({
         </div>
         <fieldset className="flex flex-col gap-1.5">
           <legend className="text-xs font-bold text-slate-700 mb-1">
-            Mesas ({capacidad} lugares elegidos)
+            Mesas disponibles ({capacidad} lugares elegidos de {capacidadSector} disponibles)
           </legend>
-          <div className="flex flex-wrap gap-x-4 gap-y-2">
-            {mesas.map((m) => (
-              <label key={m.id} className="flex items-center gap-1.5 text-xs text-slate-700">
-                <input
-                  type="checkbox"
-                  checked={elegidas.includes(m.numero)}
-                  onChange={(e) =>
-                    setElegidas((actual) =>
-                      e.target.checked
-                        ? [...actual, m.numero]
-                        : actual.filter((n) => n !== m.numero),
-                    )
-                  }
-                />
-                Mesa {m.numero} · {m.capacidad} lug. · {m.sector_nombre}
-              </label>
-            ))}
-          </div>
+          {mesasDisponibles.length === 0 ? (
+            <p className="text-xs text-slate-400">
+              No hay mesas disponibles en este espacio para la fecha y hora seleccionadas.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-x-4 gap-y-2">
+              {mesasDisponibles.map((m) => (
+                <label key={m.id} className="flex items-center gap-1.5 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={elegidasDisponibles.includes(m.numero)}
+                    onChange={(e) =>
+                      setElegidas((actual) =>
+                        e.target.checked
+                          ? [...actual, m.numero]
+                          : actual.filter((n) => n !== m.numero),
+                      )
+                    }
+                  />
+                  Mesa {m.numero} · {m.capacidad} lug. · {m.sector_nombre}
+                </label>
+              ))}
+            </div>
+          )}
         </fieldset>
 
         {!reserva && (
@@ -280,7 +407,7 @@ export function ReservaForm({
                           ? {
                               ...x,
                               producto: e.target.value,
-                              precio: plato ? plato.precio : x.precio,
+                              precio: plato ? (plato.precio_final ?? plato.precio) : x.precio,
                             }
                           : x,
                       ),
@@ -290,7 +417,7 @@ export function ReservaForm({
                   <option value="">Elegí un plato…</option>
                   {platos.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.nombre} ({formatMoneda(p.precio)})
+                      {p.nombre} ({formatMoneda(p.precio_final ?? p.precio)})
                     </option>
                   ))}
                 </select>
