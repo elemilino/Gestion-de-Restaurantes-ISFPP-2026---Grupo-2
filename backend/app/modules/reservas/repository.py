@@ -10,6 +10,7 @@ from app.models.carta import Producto
 from app.models.clientes import Cliente
 from app.models.comandas import Comanda
 from app.models.medios_pago import MedioPago
+from app.models.personal import Mozo
 from app.models.reservas import MenuAcordado, Reserva, reserva_mesa
 from app.models.salon import Mesa
 
@@ -85,6 +86,50 @@ class ReservaRepository:
 
     def buscar_producto(self, producto_id: int) -> Producto | None:
         return self.db.get(Producto, producto_id)
+
+    def marcar_vencidas_ausentes(self, ahora: datetime | None = None) -> int:
+        """Pasa a AUSENTE toda reserva ACTIVA cuya fecha y hora límite ya se alcanzó."""
+        limite = ahora or datetime.now()
+        vencidas = list(
+            self.db.scalars(
+                select(Reserva).where(
+                    Reserva.estado == EstadoReserva.ACTIVA,
+                    Reserva.fecha_hora <= limite,
+                )
+            )
+        )
+        if not vencidas:
+            return 0
+        for r in vencidas:
+            r.estado = EstadoReserva.AUSENTE
+        self.db.commit()
+        return len(vencidas)
+
+    def obtener_mozo_para_mesas(self, mesas: list[Mesa]) -> Mozo:
+        """Busca un mozo activo del sector de las mesas (o de cualquier sector)."""
+        sector_id = mesas[0].sector_id
+        mozo = self.db.scalars(
+            select(Mozo)
+            .where(Mozo.activo, Mozo.sector_id == sector_id)
+            .order_by(Mozo.id)
+        ).first()
+        if mozo is not None:
+            return mozo
+        mozo = self.db.scalars(
+            select(Mozo).where(Mozo.activo).order_by(Mozo.id)
+        ).first()
+        if mozo is not None:
+            return mozo
+        mozo = Mozo(
+            dni="00000001",
+            nombre="Mozo",
+            apellido="Salón",
+            sector_id=sector_id,
+            activo=True,
+        )
+        self.db.add(mozo)
+        self.db.flush()
+        return mozo
 
     def guardar(self, reserva: Reserva) -> Reserva:
         self.db.add(reserva)

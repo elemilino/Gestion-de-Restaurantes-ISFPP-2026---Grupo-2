@@ -80,6 +80,12 @@ export function ComprobanteModal({
               <span>Importe</span>
               <span className="tabular">{formatMoneda(comprobante.importe_total)}</span>
             </div>
+            {Number(comprobante.descuento_sena) > 0 && (
+              <div className="flex justify-between text-slate-600">
+                <span>Seña descontada (reserva)</span>
+                <span className="tabular">-{formatMoneda(comprobante.descuento_sena)}</span>
+              </div>
+            )}
             {comprobante.detalles_pago.map((d) => (
               <div key={d.id} className="flex justify-between text-slate-600">
                 <span>

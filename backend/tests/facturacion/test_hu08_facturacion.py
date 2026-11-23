@@ -12,12 +12,14 @@ Cubre:
 - Control de roles (Administrador y Cajero permitidos; Mozo bloqueado).
 """
 
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 import pytest
 
 from app.core.enums import (
     EstadoComanda,
+    EstadoReserva,
     Rol,
     TipoAcreditacion,
     TipoFactura,
@@ -27,6 +29,7 @@ from app.models.carta import Producto, SeccionCarta
 from app.models.comandas import Comanda, DetalleComanda
 from app.models.medios_pago import MedioPago
 from app.models.personal import Mozo
+from app.models.reservas import Reserva, Sena
 from app.models.salon import Mesa, Sector
 
 URL_FACTURACION = "/api/v1/facturacion"
@@ -100,13 +103,18 @@ def datos_prueba(db):
 
 
 def _crear_comanda_con_detalles(
-    db, datos_prueba, estado=EstadoComanda.CERRADA, vacia=False
+    db,
+    datos_prueba,
+    estado=EstadoComanda.CERRADA,
+    vacia=False,
+    reserva: Reserva | None = None,
 ) -> Comanda:
     comanda = Comanda(
         mozo_id=datos_prueba["mozo"].id,
         cantidad_comensales=2,
         mesas=[datos_prueba["mesa"]],
         estado=estado,
+        reserva=reserva,
     )
     db.add(comanda)
     db.flush()
@@ -130,6 +138,30 @@ def _crear_comanda_con_detalles(
     return comanda
 
 
+def _crear_reserva_con_sena(
+    db, datos_prueba, monto="3000.00", devuelta=False
+) -> Reserva:
+    reserva = Reserva(
+        fecha_hora=datetime.now() + timedelta(hours=2),
+        duracion_horas=2,
+        cantidad_comensales=2,
+        estado=EstadoReserva.CUMPLIDA,
+        mesas=[datos_prueba["mesa"]],
+    )
+    db.add(reserva)
+    db.flush()
+    db.add(
+        Sena(
+            reserva_id=reserva.id,
+            monto=Decimal(monto),
+            medio_pago_id=datos_prueba["medio_efectivo"].id,
+            devuelta=devuelta,
+        )
+    )
+    db.commit()
+    return reserva
+
+
 def test_hu08a_ca1_generar_factura_exitosamente(client, headers, db, datos_prueba):
     """CA1: Genera factura a partir de comanda cerrada con consumos."""
     comanda = _crear_comanda_con_detalles(
@@ -149,8 +181,102 @@ def test_hu08a_ca1_generar_factura_exitosamente(client, headers, db, datos_prueb
     assert datos["tipo_factura"] == "B"
     assert datos["cuit_dni_cliente"] == "20304050607"
     assert Decimal(str(datos["importe_total"])) == Decimal("11500.00")
+    assert Decimal(str(datos["descuento_sena"])) == Decimal("0.00")
     assert Decimal(str(datos["total_a_pagar"])) == Decimal("11500.00")
     assert datos["detalles_pago"] == []
+
+
+def test_factura_con_reserva_descuenta_la_sena_del_saldo_a_cobrar(
+    client, headers, db, datos_prueba
+):
+    """Una comanda con reserva paga el consumo menos la seña ya entregada."""
+    reserva = _crear_reserva_con_sena(db, datos_prueba, monto="3000.00")
+    comanda = _crear_comanda_con_detalles(db, datos_prueba, reserva=reserva)
+
+    r_fac = client.post(
+        URL_FACTURACION, json={"comanda_id": comanda.id}, headers=headers(Rol.CAJERO)
+    )
+    assert r_fac.status_code == 201
+    factura = r_fac.json()
+    assert Decimal(str(factura["importe_total"])) == Decimal("11500.00")
+    assert Decimal(str(factura["descuento_sena"])) == Decimal("3000.00")
+    assert Decimal(str(factura["total_a_pagar"])) == Decimal("8500.00")
+
+    # Cobrar el importe completo debe fallar: ya se pagaron $3000 de seña.
+    r_excedido = client.post(
+        f"{URL_FACTURACION}/{factura['id']}/cobrar",
+        json={
+            "pagos": [
+                {
+                    "medio_pago_id": datos_prueba["medio_efectivo"].id,
+                    "monto_abonado": "11500.00",
+                }
+            ]
+        },
+        headers=headers(Rol.CAJERO),
+    )
+    assert r_excedido.status_code == 422
+    assert r_excedido.json()["code"] == "PAGO_EXCEDIDO"
+
+    r_cobro = client.post(
+        f"{URL_FACTURACION}/{factura['id']}/cobrar",
+        json={
+            "pagos": [
+                {
+                    "medio_pago_id": datos_prueba["medio_efectivo"].id,
+                    "monto_abonado": "8500.00",
+                }
+            ]
+        },
+        headers=headers(Rol.CAJERO),
+    )
+    assert r_cobro.status_code == 200
+    pagada = r_cobro.json()
+    assert Decimal(str(pagada["descuento_sena"])) == Decimal("3000.00")
+    assert Decimal(str(pagada["total_a_pagar"])) == Decimal("8500.00")
+
+    comp = client.get(
+        f"{URL_FACTURACION}/{factura['id']}/comprobante", headers=headers(Rol.CAJERO)
+    ).json()
+    assert Decimal(str(comp["descuento_sena"])) == Decimal("3000.00")
+    assert Decimal(str(comp["total_a_pagar"])) == Decimal("8500.00")
+
+
+def test_descuento_de_sena_se_aplica_antes_del_recargo(
+    client, headers, db, datos_prueba
+):
+    """El recargo se calcula sobre el saldo ya descontado, no sobre el consumo."""
+    reserva = _crear_reserva_con_sena(db, datos_prueba, monto="3000.00")
+    comanda = _crear_comanda_con_detalles(db, datos_prueba, reserva=reserva)
+    factura = client.post(
+        URL_FACTURACION, json={"comanda_id": comanda.id}, headers=headers(Rol.CAJERO)
+    ).json()
+
+    r_cobro = client.post(
+        f"{URL_FACTURACION}/{factura['id']}/cobrar",
+        json={
+            "pagos": [
+                {
+                    "medio_pago_id": datos_prueba["medio_tarjeta"].id,
+                    "monto_abonado": "8500.00",
+                }
+            ]
+        },
+        headers=headers(Rol.CAJERO),
+    )
+    assert r_cobro.status_code == 200
+    # 8500 + 10% de recargo = 9350 (no 11500 + 10%).
+    assert Decimal(str(r_cobro.json()["total_a_pagar"])) == Decimal("9350.00")
+
+
+def test_seña_devuelta_no_se_descuenta(client, headers, db, datos_prueba):
+    reserva = _crear_reserva_con_sena(db, datos_prueba, monto="3000.00", devuelta=True)
+    comanda = _crear_comanda_con_detalles(db, datos_prueba, reserva=reserva)
+    factura = client.post(
+        URL_FACTURACION, json={"comanda_id": comanda.id}, headers=headers(Rol.CAJERO)
+    ).json()
+    assert Decimal(str(factura["descuento_sena"])) == Decimal("0.00")
+    assert Decimal(str(factura["total_a_pagar"])) == Decimal("11500.00")
 
 
 def test_hu08a_ca2_comanda_sin_consumos_bloqueada(client, headers, db, datos_prueba):

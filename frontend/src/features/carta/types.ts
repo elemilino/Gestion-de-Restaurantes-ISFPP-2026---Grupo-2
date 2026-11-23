@@ -55,6 +55,9 @@ export interface ProductoCarta {
   nombre: string
   descripcion: string | null
   precio: string
+  descuento_porcentaje?: string | null
+  precio_final?: string | null
+  promocion_descripcion?: string | null
   tipo: TipoCarta
   porcion_gramos: number | null
   volumen_ml: number | null

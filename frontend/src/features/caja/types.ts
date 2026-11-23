@@ -35,6 +35,7 @@ export interface Factura {
   tipo_factura: TipoFactura
   fecha: string
   importe_total: string
+  descuento_sena: string
   total_a_pagar: string
   monto_recibido: string
   estado: EstadoFactura
@@ -60,6 +61,7 @@ export interface Comprobante {
   mozo_nombre: string | null
   items: { producto_nombre: string; cantidad: number; precio_unitario: string; subtotal: string }[]
   importe_total: string
+  descuento_sena: string
   total_a_pagar: string
   monto_recibido: string
   vuelto: string

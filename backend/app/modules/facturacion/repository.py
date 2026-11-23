@@ -7,6 +7,7 @@ from app.core.enums import EstadoComanda
 from app.models.comandas import Comanda, DetalleComanda
 from app.models.facturacion import DetallePago, Factura
 from app.models.medios_pago import MedioPago
+from app.models.reservas import Reserva
 
 
 class FacturacionRepository:
@@ -25,6 +26,9 @@ class FacturacionRepository:
                 .selectinload(DetalleComanda.producto),
                 selectinload(Factura.comanda).selectinload(Comanda.mesas),
                 selectinload(Factura.comanda).selectinload(Comanda.mozo),
+                selectinload(Factura.comanda)
+                .selectinload(Comanda.reserva)
+                .selectinload(Reserva.sena),
             )
             .where(Factura.id == factura_id)
         )
@@ -41,7 +45,9 @@ class FacturacionRepository:
                 selectinload(Factura.detalles_pago).selectinload(
                     DetallePago.medio_pago
                 ),
-                selectinload(Factura.comanda),
+                selectinload(Factura.comanda)
+                .selectinload(Comanda.reserva)
+                .selectinload(Reserva.sena),
             )
             .order_by(Factura.fecha.desc())
         )
@@ -69,6 +75,7 @@ class FacturacionRepository:
                 selectinload(Comanda.detalles).selectinload(DetalleComanda.producto),
                 selectinload(Comanda.mesas),
                 selectinload(Comanda.mozo),
+                selectinload(Comanda.reserva).selectinload(Reserva.sena),
             )
             .where(Comanda.id == comanda_id)
         )

@@ -19,12 +19,17 @@ from app.modules.comandas.schemas import (
 )
 from app.modules.comandas.service import ComandaService
 
-router = APIRouter(dependencies=[Depends(require_roles(Rol.MOZO, Rol.ADMINISTRADOR))])
+router = APIRouter()
+operar_comanda = [Depends(require_roles(Rol.MOZO, Rol.ADMINISTRADOR))]
+ver_tablero = [
+    Depends(require_roles(Rol.MOZO, Rol.ADMINISTRADOR, Rol.CAJERO, Rol.RECEPCIONISTA))
+]
 
 
 @router.get(
     "/tablero-mesas",
     response_model=list[MesaTableroOut],
+    dependencies=ver_tablero,
     summary="Estado operativo de las mesas del salón y sus comandas (HU-06)",
 )
 def obtener_tablero_mesas(db: Session = Depends(get_db)) -> list[MesaTableroOut]:
@@ -35,6 +40,7 @@ def obtener_tablero_mesas(db: Session = Depends(get_db)) -> list[MesaTableroOut]
     "",
     response_model=ComandaRespuesta,
     status_code=status.HTTP_201_CREATED,
+    dependencies=operar_comanda,
     summary="Crear comanda (HU-05a)",
 )
 def crear_comanda(datos: ComandaCrear, db: Session = Depends(get_db)) -> Comanda:
@@ -45,6 +51,7 @@ def crear_comanda(datos: ComandaCrear, db: Session = Depends(get_db)) -> Comanda
 @router.get(
     "",
     response_model=list[ComandaRespuesta],
+    dependencies=operar_comanda,
     summary="Listar comandas (HU-05f)",
 )
 def listar_comandas(
@@ -56,6 +63,7 @@ def listar_comandas(
 @router.get(
     "/{comanda_id}",
     response_model=ComandaRespuesta,
+    dependencies=ver_tablero,
     summary="Obtener detalle de una comanda (HU-06)",
 )
 def obtener_comanda(comanda_id: int, db: Session = Depends(get_db)) -> Comanda:
@@ -66,6 +74,7 @@ def obtener_comanda(comanda_id: int, db: Session = Depends(get_db)) -> Comanda:
 @router.patch(
     "/{comanda_id}",
     response_model=ComandaRespuesta,
+    dependencies=operar_comanda,
     summary="Modificar mozo o comensales (HU-05b)",
 )
 def modificar_comanda(
@@ -77,6 +86,7 @@ def modificar_comanda(
 @router.post(
     "/{comanda_id}/detalles",
     response_model=ComandaRespuesta,
+    dependencies=operar_comanda,
     summary="Agregar producto a la comanda (HU-05b)",
 )
 def agregar_producto(
@@ -88,6 +98,7 @@ def agregar_producto(
 @router.patch(
     "/{comanda_id}/detalles/{detalle_id}",
     response_model=ComandaRespuesta,
+    dependencies=operar_comanda,
     summary="Cambiar cantidad de un producto (HU-05b)",
 )
 def cambiar_cantidad(
@@ -102,6 +113,7 @@ def cambiar_cantidad(
 @router.delete(
     "/{comanda_id}/detalles/{detalle_id}",
     response_model=ComandaRespuesta,
+    dependencies=operar_comanda,
     summary="Quitar producto de la comanda (HU-05b / HU-06 CA2)",
 )
 def quitar_producto(
@@ -114,6 +126,7 @@ def quitar_producto(
 @router.patch(
     "/{comanda_id}/detalles/{detalle_id}/entrega",
     response_model=ComandaRespuesta,
+    dependencies=operar_comanda,
     summary="Registrar entrega de un producto en mesa (HU-06)",
 )
 def entregar_producto(
@@ -128,6 +141,7 @@ def entregar_producto(
 @router.post(
     "/{comanda_id}/anulacion",
     response_model=ComandaRespuesta,
+    dependencies=operar_comanda,
     summary="Anular comanda indicando el motivo (HU-06 CA3)",
 )
 def anular_comanda(
@@ -140,6 +154,7 @@ def anular_comanda(
 @router.post(
     "/{comanda_id}/cierre",
     response_model=ComandaRespuesta,
+    dependencies=operar_comanda,
     summary="Cerrar comanda (HU-05c)",
 )
 def cerrar_comanda(comanda_id: int, db: Session = Depends(get_db)) -> Comanda:
@@ -162,6 +177,7 @@ def reabrir_comanda(comanda_id: int, db: Session = Depends(get_db)) -> Comanda:
 @router.delete(
     "/{comanda_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=operar_comanda,
     summary="Eliminar comanda (HU-05e)",
 )
 def eliminar_comanda(comanda_id: int, db: Session = Depends(get_db)) -> Response:

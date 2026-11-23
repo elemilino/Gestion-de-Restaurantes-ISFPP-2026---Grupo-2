@@ -291,12 +291,19 @@ export function ComandaPanel({ comandaId, onCerrar, onCambio }: Props) {
                   <option value="">Elegí un producto…</option>
                   {carta.map((s) => (
                     <optgroup key={s.id} label={s.nombre}>
-                      {s.productos.map((p) => (
-                        <option key={p.id} value={p.id} disabled={!p.disponible}>
-                          {p.nombre} · {formatMoneda(p.precio)}
-                          {!p.disponible ? ' (no disponible)' : ''}
-                        </option>
-                      ))}
+                      {s.productos.map((p) => {
+                        const tienePromo =
+                          p.descuento_porcentaje != null && Number(p.descuento_porcentaje) > 0
+                        const precioMostrar =
+                          tienePromo && p.precio_final ? p.precio_final : p.precio
+                        return (
+                          <option key={p.id} value={p.id} disabled={!p.disponible}>
+                            {p.nombre} · {formatMoneda(precioMostrar)}
+                            {tienePromo ? ` (-${Number(p.descuento_porcentaje)}% promo)` : ''}
+                            {!p.disponible ? ' (no disponible)' : ''}
+                          </option>
+                        )
+                      })}
                     </optgroup>
                   ))}
                 </select>

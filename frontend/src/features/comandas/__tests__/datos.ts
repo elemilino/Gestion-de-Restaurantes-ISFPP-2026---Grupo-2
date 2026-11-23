@@ -38,6 +38,7 @@ export const TABLERO: MesaTablero[] = [
     sector_nombre: 'Salón Principal',
     estado_mesa: 'ocupada',
     comanda: COMANDA,
+    reserva_hoy: null,
   },
   {
     id: 2,
@@ -47,5 +48,6 @@ export const TABLERO: MesaTablero[] = [
     sector_nombre: 'Salón Principal',
     estado_mesa: 'libre',
     comanda: null,
+    reserva_hoy: null,
   },
 ]

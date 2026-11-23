@@ -27,9 +27,20 @@ def test_hu11a_ca1_crea_reserva_activa_con_sena(client, datos):
 
 def test_hu11a_ca1_bloquea_las_mesas_durante_la_duracion(client, datos):
     assert client.post(URL, json=datos(hora="20:00")).status_code == 201
-    # 21:30 se superpone con 20:00 a 22:00; 22:00 ya no.
-    assert client.post(URL, json=datos(hora="21:30")).status_code == 409
-    assert client.post(URL, json=datos(hora="22:00")).status_code == 201
+    # Duración fija de 1 hora: 20:00 ya está ocupada; 21:00 está libre.
+    assert client.post(URL, json=datos(hora="20:00")).status_code == 409
+    assert client.post(URL, json=datos(hora="21:00")).status_code == 201
+
+
+def test_hu11a_hora_en_punto_y_rango_operativo(client, datos):
+    # No permite minutos distintos de 00 ni fuera de 10:00 a 23:00
+    r_minutos = client.post(URL, json=datos(hora="21:30"))
+    assert r_minutos.status_code == 422
+    assert r_minutos.json()["code"] == "HORA_INVALIDA"
+
+    r_temprano = client.post(URL, json=datos(hora="09:00"))
+    assert r_temprano.status_code == 422
+    assert r_temprano.json()["code"] == "HORA_INVALIDA"
 
 
 def test_hu11a_ca2_mesa_ya_reservada_en_ese_horario(client, datos):
@@ -87,6 +98,25 @@ def test_hu11a_ca6_sena_con_medio_de_pago_inactivo(db, client, datos, medio_pago
     assert r.json()["code"] == "SENA_INVALIDA"
 
 
+def test_hu11a_ca6_sena_fuera_del_rango_permitido(client, datos, medio_pago):
+    for monto in ("999", "10001"):
+        r = client.post(
+            URL,
+            json=datos(sena={"monto": monto, "medio_pago_id": medio_pago.id}),
+        )
+        assert r.status_code == 422
+        assert r.json()["code"] == "SENA_INVALIDA"
+
+
+def test_hu11a_ca7_rechaza_plato_no_disponible(db, client, datos, plato):
+    plato.disponible = False
+    db.commit()
+    menu = [{"producto_id": plato.id, "cantidad": 2, "precio_acordado": "4500"}]
+    r = client.post(URL, json=datos(menu_acordado=menu))
+    assert r.status_code == 422
+    assert r.json()["code"] == "MENU_ACORDADO_INVALIDO"
+
+
 def test_hu11a_ca7_guarda_el_menu_acordado(client, datos, plato):
     menu = [{"producto_id": plato.id, "cantidad": 4, "precio_acordado": "4500"}]
     r = client.post(URL, json=datos(menu_acordado=menu))
@@ -119,11 +149,11 @@ def test_hu11a_ca8_menu_con_cantidad_no_positiva(client, datos, plato):
 
 def test_hu11a_ca9_modifica_y_vuelve_a_validar(client, datos):
     reserva = client.post(URL, json=datos()).json()
-    cambios = datos(hora="22:30", numeros_mesa=[3], cantidad_comensales=5)
+    cambios = datos(hora="22:00", numeros_mesa=[3], cantidad_comensales=5)
     del cambios["sena"]
     r = client.put(f"{URL}/{reserva['id']}", json=cambios)
     assert r.status_code == 200
-    assert r.json()["hora"] == "22:30:00"
+    assert r.json()["hora"] == "22:00:00"
     assert [m["numero"] for m in r.json()["mesas"]] == [3]
     # Vuelve a validar la capacidad (CA3).
     cambios["cantidad_comensales"] = 7
@@ -134,7 +164,7 @@ def test_hu11a_ca9_modifica_y_vuelve_a_validar(client, datos):
 
 def test_hu11a_ca9_no_choca_consigo_misma(client, datos):
     reserva = client.post(URL, json=datos()).json()
-    cambios = datos(hora="21:30")
+    cambios = datos(hora="21:00")
     del cambios["sena"]
     assert client.put(f"{URL}/{reserva['id']}", json=cambios).status_code == 200
 

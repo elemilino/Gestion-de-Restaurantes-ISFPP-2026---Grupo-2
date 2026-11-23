@@ -21,6 +21,7 @@ const FACTURA: Factura = {
   tipo_factura: 'Consumidor Final',
   fecha: '2026-11-10T22:00:00',
   importe_total: '20000.00',
+  descuento_sena: '0.00',
   total_a_pagar: '20000.00',
   monto_recibido: '0.00',
   estado: 'Adeudada',
@@ -77,6 +78,7 @@ describe('CajaPage', () => {
         },
       ],
       importe_total: '20000.00',
+      descuento_sena: '0.00',
       total_a_pagar: '21000.00',
       monto_recibido: '21000.00',
       vuelto: '0.00',
@@ -125,5 +127,28 @@ describe('CajaPage', () => {
     })
     expect(await screen.findByText('Factura #3 cobrada: $ 21.000')).toBeInTheDocument()
     expect(await screen.findByText('2 × Milanesa')).toBeInTheDocument()
+  })
+
+  it('cobra solo el saldo después de descontar la seña de la reserva', async () => {
+    const conSena: Factura = {
+      ...FACTURA,
+      descuento_sena: '5000.00',
+      total_a_pagar: '15000.00',
+    }
+    vi.mocked(listarFacturas).mockResolvedValue([conSena])
+    vi.mocked(cobrarFactura).mockResolvedValue({
+      ...conSena,
+      estado: 'Pagada',
+    })
+    render(<CajaPage />)
+    fireEvent.click(await screen.findByRole('button', { name: /Cobrar/ }))
+    expect(await screen.findByText('Seña descontada (reserva)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Monto')).toHaveValue(15000)
+
+    fireEvent.click(screen.getByRole('button', { name: /Registrar cobro/ }))
+    expect(cobrarFactura).toHaveBeenCalledWith(3, {
+      pagos: [{ medio_pago_id: 1, monto_abonado: '15000.00' }],
+      monto_recibido: undefined,
+    })
   })
 })

@@ -39,6 +39,12 @@ describe('ProtectedRoute', () => {
     expect(screen.getByText('pantalla mesas')).toBeInTheDocument()
   })
 
+  it('el recepcionista puede entrar al tablero de mesas', () => {
+    iniciarSesionComo(Rol.RECEPCIONISTA)
+    renderEn('/mesas')
+    expect(screen.getByText('pantalla mesas')).toBeInTheDocument()
+  })
+
   it('redirige si el rol no tiene acceso a la sección', () => {
     iniciarSesionComo(Rol.MOZO)
     renderEn('/configuracion')

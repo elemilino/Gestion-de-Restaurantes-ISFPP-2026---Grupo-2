@@ -2,17 +2,7 @@ import { NavLink } from 'react-router'
 
 import { useAuth } from '../auth/useAuth'
 import { Icon } from '../components/Icon'
-import { NOMBRE_ROL } from '../lib/roles'
 import { navItems } from './navItems'
-
-function iniciales(nombre: string): string {
-  return nombre
-    .split(' ')
-    .map((parte) => parte[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase()
-}
 
 export function Sidebar() {
   const { usuario, logout } = useAuth()
@@ -56,23 +46,14 @@ export function Sidebar() {
       </div>
 
       {usuario && (
-        <div className="p-3 m-3 rounded-2xl bg-amber-50/70 border border-amber-200/60 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-brand-100 border-2 border-brand-400 flex items-center justify-center text-brand-800 font-bold text-sm shrink-0">
-            {iniciales(usuario.nombre)}
-          </div>
-          <div className="flex flex-col min-w-0 flex-1">
-            <span className="font-bold text-xs text-slate-900 truncate">{usuario.nombre}</span>
-            <span className="text-[11px] text-brand-800 font-semibold truncate">
-              {NOMBRE_ROL[usuario.rol]}
-            </span>
-          </div>
+        <div className="p-3">
           <button
             type="button"
             onClick={logout}
-            title="Cerrar sesión"
-            className="flex items-center justify-center w-8 h-8 rounded-lg bg-white text-rose-600 hover:bg-rose-50 border border-amber-200/70 transition-colors shrink-0"
+            className="w-full px-3.5 py-2.5 rounded-xl bg-amber-50/70 hover:bg-rose-50 text-rose-600 border border-amber-200/60 hover:border-rose-200 font-bold text-xs flex items-center justify-center gap-2 transition-colors"
           >
             <Icon name="logout" className="text-base" />
+            <span>Cerrar sesión</span>
           </button>
         </div>
       )}

@@ -9,6 +9,7 @@ Cubre:
 - Tablero operativo de mesas (/api/v1/comandas/tablero-mesas).
 """
 
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -16,6 +17,7 @@ import pytest
 from app.core.enums import EstadoComanda, Rol, TipoProducto
 from app.models.carta import Producto, SeccionCarta
 from app.models.personal import Mozo
+from app.models.promociones import Promocion
 from app.models.salon import Mesa, Sector
 
 URL = "/api/v1/comandas"
@@ -309,3 +311,29 @@ def test_hu06_tablero_mesas_refleja_estados_del_salon(client, escenario):
     r_final = client.get(f"{URL}/tablero-mesas")
     assert r_final.json()[0]["estado_mesa"] == "libre"
     assert r_final.json()[0]["comanda"] is None
+
+
+def test_hu06_agregar_producto_con_promocion_activa_aplica_descuento(
+    db, client, escenario
+):
+    hoy = date.today()
+    promo = Promocion(
+        descripcion="Promo Milanesa",
+        fecha_inicio=hoy,
+        fecha_fin=hoy + timedelta(days=5),
+        descuento=Decimal("10.00"),
+        activo=True,
+        productos=[escenario["plato"]],
+    )
+    db.add(promo)
+    db.commit()
+
+    comanda_id = _abrir_comanda(client)
+    r = client.post(
+        f"{URL}/{comanda_id}/detalles",
+        json={"producto_id": escenario["plato"].id, "cantidad": 2},
+    )
+    assert r.status_code == 200
+    detalle = r.json()["detalles"][0]
+    # 8500.00 con 10% de descuento = 7650.00
+    assert Decimal(str(detalle["precio_unitario"])) == Decimal("7650.00")

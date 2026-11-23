@@ -90,8 +90,7 @@ export function ReservasPage() {
             <h1 className="text-xl font-bold text-slate-900">Reservas</h1>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Registro con seña y menú acordado (HU-11a) y atención con 15 minutos de tolerancia
-            (HU-11b).
+            Registro con seña y menú acordado (HU-11a) y atención de reservas (HU-11b).
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-3">
@@ -158,7 +157,6 @@ export function ReservasPage() {
                     <td className="py-2.5 px-4 font-bold tabular">{r.nro_reserva}</td>
                     <td className="py-2.5 px-4 tabular">
                       {fechaLarga(r.fecha)} {r.hora.slice(0, 5)}
-                      <span className="text-slate-400"> · {r.duracion_horas} h</span>
                     </td>
                     <td className="py-2.5 px-4">
                       {r.cliente ? `${r.cliente.apellido}, ${r.cliente.nombre}` : '—'}

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import EstadoComanda, EstadoFactura
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
+from app.models.comandas import Comanda
 from app.models.facturacion import DetallePago, Factura
 from app.modules.facturacion.repository import FacturacionRepository
 from app.modules.facturacion.schemas import (
@@ -77,17 +78,20 @@ class FacturacionService:
                 code="FACTURA_YA_GENERADA",
             )
 
-        # HU-08a CA1: Calcular subtotal de consumos
+        # HU-08a CA1: Calcular subtotal de consumos. Si la comanda viene de una
+        # reserva con seña no devuelta, esa seña se descuenta del saldo a cobrar.
         subtotal = sum(
             (Decimal(str(d.precio_unitario)) * d.cantidad) for d in comanda.detalles
         )
+        descuento_sena = self._descuento_sena(comanda, subtotal)
+        total_a_pagar = (subtotal - descuento_sena).quantize(Decimal("0.01"))
 
         factura = Factura(
             comanda_id=comanda.id,
             cuit_dni_cliente=datos.cuit_dni_cliente,
             tipo_factura=datos.tipo_factura,
             importe_total=subtotal,
-            total_a_pagar=subtotal,
+            total_a_pagar=total_a_pagar,
             monto_recibido=Decimal("0.00"),
             estado=EstadoFactura.ADEUDADA,
         )
@@ -107,6 +111,9 @@ class FacturacionService:
                 "La factura ya fue saldada",
                 code="FACTURA_YA_PAGADA",
             )
+
+        # El saldo ya descuenta la seña de la reserva (si la hubo).
+        saldo_a_cobrar = factura.total_a_pagar
 
         # Validar y preparar los detalles de pago
         detalles_pago: list[DetallePago] = []
@@ -142,15 +149,15 @@ class FacturacionService:
             )
             detalles_pago.append(detalle)
 
-        # HU-08b CA3 & CA4: Validar que los montos abonados cubran el total
-        if suma_abonada < factura.importe_total:
+        # HU-08b CA3 & CA4: Validar que los montos abonados cubran el saldo
+        if suma_abonada < saldo_a_cobrar:
             raise BusinessRuleError(
-                "El monto abonado es insuficiente para cubrir el importe total",
+                "El monto abonado es insuficiente para cubrir el total a pagar",
                 code="PAGO_INSUFICIENTE",
             )
-        if suma_abonada > factura.importe_total:
+        if suma_abonada > saldo_a_cobrar:
             raise BusinessRuleError(
-                "El monto abonado supera el importe total de la factura",
+                "El monto abonado supera el total a pagar de la factura",
                 code="PAGO_EXCEDIDO",
             )
 
@@ -230,6 +237,7 @@ class FacturacionService:
             mozo_nombre=mozo_nombre,
             items=items,
             importe_total=factura.importe_total,
+            descuento_sena=self._descuento_sena(comanda, factura.importe_total),
             total_a_pagar=factura.total_a_pagar,
             monto_recibido=factura.monto_recibido,
             vuelto=vuelto,
@@ -237,6 +245,20 @@ class FacturacionService:
                 self._a_detalle_pago_out(dp) for dp in factura.detalles_pago
             ],
         )
+
+    @staticmethod
+    def _descuento_sena(comanda: Comanda | None, subtotal: Decimal) -> Decimal:
+        """Seña pagada al reservar, descontada del saldo de una comanda con reserva.
+
+        No se descuenta si la seña fue devuelta (reserva cancelada). Se limita al
+        subtotal para que el saldo nunca sea negativo.
+        """
+        if comanda is None or comanda.reserva is None:
+            return Decimal("0.00")
+        sena = comanda.reserva.sena
+        if sena is None or sena.devuelta or not sena.activo:
+            return Decimal("0.00")
+        return min(Decimal(str(sena.monto)), subtotal).quantize(Decimal("0.01"))
 
     def _obtener_entidad_factura(self, factura_id: int) -> Factura:
         factura = self.repo.buscar_factura_por_id(factura_id)
@@ -255,6 +277,7 @@ class FacturacionService:
             tipo_factura=f.tipo_factura,
             fecha=f.fecha,
             importe_total=f.importe_total,
+            descuento_sena=self._descuento_sena(f.comanda, f.importe_total),
             total_a_pagar=f.total_a_pagar,
             monto_recibido=f.monto_recibido,
             estado=f.estado,

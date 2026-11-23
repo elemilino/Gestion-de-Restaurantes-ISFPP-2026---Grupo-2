@@ -2,12 +2,16 @@ import type { ReactNode } from 'react'
 
 import { Icon } from './Icon'
 
-type TonoAlert = 'error' | 'info' | 'exito'
+type TonoAlert = 'error' | 'aviso' | 'info' | 'exito'
 
 const ESTILOS: Record<TonoAlert, { clases: string; icono: string }> = {
   error: {
     clases: 'bg-status-busy-bg border-status-busy-border text-status-busy-text',
     icono: 'error',
+  },
+  aviso: {
+    clases: 'bg-amber-50 border-amber-200 text-amber-900',
+    icono: 'warning',
   },
   info: {
     clases: 'bg-status-reserved-bg border-status-reserved-border text-status-reserved-text',
@@ -19,7 +23,7 @@ const ESTILOS: Record<TonoAlert, { clases: string; icono: string }> = {
   },
 }
 
-/** Mensaje destacado: error (rojo), info (azul) o éxito (verde). */
+/** Mensaje destacado: error (rojo), aviso (ámbar), info (azul) o éxito (verde). */
 export function Alert({ tono = 'info', children }: { tono?: TonoAlert; children: ReactNode }) {
   const estilo = ESTILOS[tono]
   return (

@@ -41,7 +41,7 @@ class Reserva(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)  # nro_reserva
     fecha_hora: Mapped[datetime]
-    duracion_horas: Mapped[int] = mapped_column(default=2)
+    duracion_horas: Mapped[int] = mapped_column(default=1)
     cantidad_comensales: Mapped[int]
     estado: Mapped[EstadoReserva] = mapped_column(
         Enum(EstadoReserva, native_enum=False, length=20),

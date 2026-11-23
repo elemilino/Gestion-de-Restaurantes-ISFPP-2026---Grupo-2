@@ -120,6 +120,9 @@ class ProductoCartaOut(BaseModel):
     nombre: str
     descripcion: str | None
     precio: Decimal
+    descuento_porcentaje: Decimal | None = None
+    precio_final: Decimal | None = None
+    promocion_descripcion: str | None = None
     tipo: TipoProducto
     porcion_gramos: int | None
     volumen_ml: int | None

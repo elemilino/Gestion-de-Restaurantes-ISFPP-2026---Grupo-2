@@ -100,13 +100,14 @@ class ComandaRepository:
         )
         return list(self.db.scalars(consulta))
 
-    def ids_mesas_reservadas_hoy(self, mesa_ids: list[int]) -> set[int]:
+    def reservas_de_hoy(self, mesa_ids: list[int]) -> dict[int, Reserva]:
+        """Reserva ACTIVA más próxima de hoy por mesa (aviso del tablero)."""
         if not mesa_ids:
-            return set()
+            return {}
         hoy = date.today()
         desde = datetime.combine(hoy, time.min)
         consulta = (
-            select(reserva_mesa.c.mesa_id)
+            select(reserva_mesa.c.mesa_id, Reserva)
             .join(Reserva, Reserva.id == reserva_mesa.c.reserva_id)
             .where(
                 reserva_mesa.c.mesa_id.in_(mesa_ids),
@@ -114,5 +115,9 @@ class ComandaRepository:
                 Reserva.fecha_hora >= desde,
                 Reserva.fecha_hora < desde + timedelta(days=1),
             )
+            .order_by(Reserva.fecha_hora, Reserva.id)
         )
-        return set(self.db.scalars(consulta))
+        por_mesa: dict[int, Reserva] = {}
+        for mesa_id, reserva in self.db.execute(consulta):
+            por_mesa.setdefault(mesa_id, reserva)
+        return por_mesa

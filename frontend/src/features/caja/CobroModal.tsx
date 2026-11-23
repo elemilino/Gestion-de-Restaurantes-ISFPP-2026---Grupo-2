@@ -44,7 +44,7 @@ export function CobroModal({
       .then((m) => {
         if (!vigente) return
         setMedios(m)
-        setLineas([{ medio: m[0] ? String(m[0].id) : '', monto: factura.importe_total }])
+        setLineas([{ medio: m[0] ? String(m[0].id) : '', monto: factura.total_a_pagar }])
       })
       .catch((e) => vigente && setError(mensajeDe(e)))
     return () => {
@@ -53,7 +53,8 @@ export function CobroModal({
   }, [factura])
 
   if (!factura) return null
-  const importe = Number(factura.importe_total)
+  const descuentoSena = Number(factura.descuento_sena ?? 0)
+  const importe = Number(factura.total_a_pagar)
   const abonado = lineas.reduce((s, l) => s + (Number(l.monto) || 0), 0)
   const conRecargo = lineas.reduce((s, l) => {
     const medio = medios.find((m) => String(m.id) === l.medio)
@@ -108,6 +109,18 @@ export function CobroModal({
           <span className="text-slate-600">Importe de la factura</span>
           <strong className="tabular">{formatMoneda(factura.importe_total)}</strong>
         </div>
+        {descuentoSena > 0 && (
+          <>
+            <div className="flex justify-between text-sm text-slate-600">
+              <span>Seña descontada (reserva)</span>
+              <span className="tabular">-{formatMoneda(factura.descuento_sena)}</span>
+            </div>
+            <div className="flex justify-between text-sm font-bold">
+              <span>Saldo a cobrar</span>
+              <strong className="tabular">{formatMoneda(factura.total_a_pagar)}</strong>
+            </div>
+          </>
+        )}
         {lineas.map((l, i) => (
           <div key={i} className="grid grid-cols-[1fr_8rem_auto] gap-2 items-end">
             <Field label={`Medio de pago ${i + 1}`} htmlFor={`cobro-medio-${i}`}>

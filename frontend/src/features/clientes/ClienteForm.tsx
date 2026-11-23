@@ -30,13 +30,15 @@ interface ClienteFormProps {
   cliente: Cliente | null
   onCerrar: () => void
   onGuardado: (cliente: Cliente) => void
+  /** 'superior' cuando se abre desde otro modal (ej. alta desde una reserva). */
+  nivel?: 'base' | 'superior'
 }
 
 /**
  * Alta y edición de clientes (HU-10). Se monta cada vez que se abre, así arranca
  * con los datos del cliente elegido.
  */
-export function ClienteForm({ cliente, onCerrar, onGuardado }: ClienteFormProps) {
+export function ClienteForm({ cliente, onCerrar, onGuardado, nivel = 'base' }: ClienteFormProps) {
   const [datos, setDatos] = useState<FormularioCliente>(() =>
     cliente ? desdeCliente(cliente) : FORMULARIO_CLIENTE_VACIO,
   )
@@ -79,6 +81,7 @@ export function ClienteForm({ cliente, onCerrar, onGuardado }: ClienteFormProps)
         cliente ? `Editar cliente: ${cliente.nombre} ${cliente.apellido}` : 'Registrar cliente'
       }
       ancho="max-w-lg"
+      nivel={nivel}
       acciones={
         <>
           <Button variante="secundario" onClick={onCerrar}>

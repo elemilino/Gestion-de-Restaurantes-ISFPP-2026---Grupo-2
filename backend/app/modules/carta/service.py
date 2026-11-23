@@ -1,10 +1,13 @@
 """Reglas de negocio del módulo carta. No conoce HTTP: lanza errores de dominio."""
 
+from decimal import Decimal
+
 from sqlalchemy.orm import Session
 
 from app.core.enums import TipoProducto
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
 from app.models.carta import Producto, SeccionCarta
+from app.models.promociones import Promocion
 from app.modules.carta.repository import (
     ProductoRepository,
     SeccionRepository,
@@ -20,6 +23,12 @@ from app.modules.carta.schemas import (
     SeccionUpdate,
 )
 from app.modules.promociones.repository import PromocionRepository
+
+
+def calcular_precio_con_descuento(precio: Decimal, descuento: Decimal) -> Decimal:
+    """Calcula el precio final aplicando un porcentaje de descuento."""
+    factor = (Decimal("100") - descuento) / Decimal("100")
+    return (precio * factor).quantize(Decimal("0.01"))
 
 
 class SeccionService:
@@ -281,12 +290,13 @@ class CartaService:
     def __init__(self, db: Session):
         self.secciones = SeccionRepository(db)
         self.productos = ProductoRepository(db)
+        self.promociones = PromocionRepository(db)
 
     def ver_carta(self, seccion_id: int | None = None) -> CartaOut:
         """Secciones activas en orden con sus productos activos ordenados por nombre.
 
         CA2: con `seccion_id`, solo esa sección. CA5: se omiten las secciones sin
-        productos activos. CA6: dos consultas en total (sin N+1).
+        productos activos. CA6: consultas agrupadas (sin N+1).
         """
         if seccion_id is None:
             secciones = self.secciones.listar_activas()
@@ -297,11 +307,15 @@ class CartaService:
             secciones = [seccion]
 
         por_seccion: dict[int, list[Producto]] = {}
+        todos_ids: list[int] = []
         for producto in self.productos.listar_activos_de_secciones(
             [s.id for s in secciones]
         ):
             if producto.vigente:  # HU-09b: los menús, solo dentro de su vigencia
                 por_seccion.setdefault(producto.seccion_id, []).append(producto)
+                todos_ids.append(producto.id)
+
+        promos = self.promociones.promociones_vigentes_por_producto(todos_ids)
 
         return CartaOut(
             secciones=[
@@ -310,7 +324,7 @@ class CartaService:
                     nombre=seccion.nombre,
                     orden=seccion.orden,
                     productos=[
-                        self._a_carta(p)
+                        self._a_carta(p, promos.get(p.id))
                         for p in sorted(
                             por_seccion[seccion.id],
                             key=lambda p: clave_nombre(p.nombre),
@@ -323,13 +337,24 @@ class CartaService:
         )
 
     @staticmethod
-    def _a_carta(producto: Producto) -> ProductoCartaOut:
+    def _a_carta(
+        producto: Producto, promo: Promocion | None = None
+    ) -> ProductoCartaOut:
         """CA4: `disponible` es la disponibilidad efectiva (marca manual y stock)."""
+        descuento = promo.descuento if promo is not None else None
+        precio_final = (
+            calcular_precio_con_descuento(producto.precio, promo.descuento)
+            if promo is not None
+            else producto.precio
+        )
         return ProductoCartaOut(
             id=producto.id,
             nombre=producto.nombre,
             descripcion=producto.descripcion,
             precio=producto.precio,
+            descuento_porcentaje=descuento,
+            precio_final=precio_final,
+            promocion_descripcion=promo.descripcion if promo is not None else None,
             tipo=producto.tipo,
             porcion_gramos=producto.porcion_gramos,
             volumen_ml=producto.volumen_ml,
