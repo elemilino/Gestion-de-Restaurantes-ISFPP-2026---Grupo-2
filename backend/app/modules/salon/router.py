@@ -18,10 +18,17 @@ from app.modules.salon.service import MesaService, SectorService
 
 router = APIRouter()
 solo_admin = [Depends(require_roles(Rol.ADMINISTRADOR))]
-# Lectura para quien arma reservas (HU-11a) y para el filtro del reporte de
+# Lectura para quien arma reservas (HU-11a), caja y el filtro del reporte de
 # ocupación (HU-12d). El mozo usa el tablero de mesas de comandas.
 lectura = [
-    Depends(require_roles(Rol.ADMINISTRADOR, Rol.RECEPCIONISTA, Rol.ENCARGADO_GENERAL))
+    Depends(
+        require_roles(
+            Rol.ADMINISTRADOR,
+            Rol.CAJERO,
+            Rol.RECEPCIONISTA,
+            Rol.ENCARGADO_GENERAL,
+        )
+    )
 ]
 
 

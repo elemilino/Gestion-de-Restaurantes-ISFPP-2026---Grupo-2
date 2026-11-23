@@ -78,13 +78,13 @@ def manana() -> date:
 
 @pytest.fixture
 def datos(salon, cliente, medio_pago):
-    """Payload válido: mañana 21:00, 2 horas, 4 comensales en la mesa 1."""
+    """Payload válido: mañana 21:00, 1 hora, 4 comensales en la mesa 1."""
 
     def _datos(**cambios) -> dict:
         base = {
             "fecha": manana().isoformat(),
             "hora": "21:00",
-            "duracion_horas": 2,
+            "duracion_horas": 1,
             "cantidad_comensales": 4,
             "numeros_mesa": [1],
             "cliente_id": cliente.id,
@@ -106,7 +106,7 @@ def reserva_en(db, salon, cliente, medio_pago):
     ) -> Reserva:
         reserva = Reserva(
             fecha_hora=datetime.now() + desde_ahora,
-            duracion_horas=2,
+            duracion_horas=1,
             cantidad_comensales=2,
             cliente_id=cliente.id,
             estado=estado,

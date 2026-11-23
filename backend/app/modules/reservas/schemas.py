@@ -28,7 +28,7 @@ class ReservaDatos(BaseModel):
 
     fecha: date
     hora: time
-    duracion_horas: int = Field(default=2, ge=1, le=12)
+    duracion_horas: int = Field(default=1, ge=1, le=12)
     cantidad_comensales: int = Field(gt=0)
     numeros_mesa: list[int] = Field(min_length=1)
     cliente_id: int

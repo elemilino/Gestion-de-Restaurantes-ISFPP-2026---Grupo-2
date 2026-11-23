@@ -8,8 +8,10 @@ from app.models.personal import Mozo
 from app.models.reservas import Reserva
 from app.models.carta import Producto
 from app.models.salon import Mesa
-from app.modules.carta.service import ProductoService
+from app.modules.carta.service import ProductoService, calcular_precio_con_descuento
 from app.modules.comandas.repository import ComandaRepository
+from app.modules.promociones.repository import PromocionRepository
+from app.modules.reservas.repository import ReservaRepository
 from app.modules.comandas.schemas import (
     ComandaAnular,
     ComandaCrear,
@@ -76,17 +78,27 @@ class ComandaService:
         return reserva
 
     def _cargar_menu_acordado(self, comanda: Comanda, reserva: Reserva) -> None:
-        """HU-05a CA8: los platos del menú acordado entran con el precio acordado."""
+        """HU-05a CA8: platos del menú acordado con precio o promoción vigente."""
+        promociones = PromocionRepository(self.db)
         por_producto: dict[int, DetalleComanda] = {}
         for item in reserva.menu_acordado.detalles:
             self._verificar_disponible(item.producto)
             self.carta.descontar_stock(item.producto, item.cantidad)
+            promo = promociones.buscar_vigente_por_producto(item.producto_id)
+            precio_promo = (
+                calcular_precio_con_descuento(item.producto.precio, promo.descuento)
+                if promo is not None
+                else item.producto.precio
+            )
+            precio_final = (
+                min(item.precio, precio_promo) if promo is not None else item.precio
+            )
             detalle = por_producto.get(item.producto_id)
             if detalle is None:
                 por_producto[item.producto_id] = DetalleComanda(
                     producto=item.producto,
                     cantidad=item.cantidad,
-                    precio_unitario=item.precio,
+                    precio_unitario=precio_final,
                 )
             else:
                 detalle.cantidad += item.cantidad
@@ -127,6 +139,15 @@ class ComandaService:
         self._verificar_disponible(producto)
         self.carta.descontar_stock(producto, datos.cantidad)
 
+        # HU-09a: si el producto tiene una promoción vigente hoy, se registra
+        # el precio unitario con el descuento aplicado.
+        promo = PromocionRepository(self.db).buscar_vigente_por_producto(producto.id)
+        precio_unitario = (
+            calcular_precio_con_descuento(producto.precio, promo.descuento)
+            if promo is not None
+            else producto.precio
+        )
+
         existente = next(
             (d for d in comanda.detalles if d.producto_id == producto.id), None
         )
@@ -135,7 +156,7 @@ class ComandaService:
                 DetalleComanda(
                     producto=producto,
                     cantidad=datos.cantidad,
-                    precio_unitario=producto.precio,
+                    precio_unitario=precio_unitario,
                 )
             )
         else:
@@ -219,6 +240,7 @@ class ComandaService:
 
     def tablero_mesas(self) -> list[MesaTableroOut]:
         """HU-06: estado operativo de las mesas del salón y su comanda en curso."""
+        ReservaRepository(self.db).marcar_vencidas_ausentes()
         mesas = self.comandas.listar_mesas_activas()
         ids = [m.id for m in mesas]
         reservadas = self.comandas.ids_mesas_reservadas_hoy(ids)

@@ -72,8 +72,35 @@ class PromocionRepository:
                 Promocion.fecha_inicio <= hoy,
                 Promocion.fecha_fin >= hoy,
             )
+            .order_by(Promocion.descuento.desc(), Promocion.id.desc())
         )
         return self.db.scalars(consulta).first()
+
+    def promociones_vigentes_por_producto(
+        self, producto_ids: list[int], fecha: date | None = None
+    ) -> dict[int, Promocion]:
+        """Mapa {producto_id: Promocion} para los productos con promoción vigente."""
+        if not producto_ids:
+            return {}
+        hoy = fecha or date.today()
+        consulta = (
+            select(promocion_producto.c.producto_id, Promocion)
+            .join(
+                Promocion,
+                Promocion.id == promocion_producto.c.promocion_id,
+            )
+            .where(
+                Promocion.activo,
+                promocion_producto.c.producto_id.in_(producto_ids),
+                Promocion.fecha_inicio <= hoy,
+                Promocion.fecha_fin >= hoy,
+            )
+            .order_by(Promocion.descuento.desc(), Promocion.id.desc())
+        )
+        mapa: dict[int, Promocion] = {}
+        for prod_id, promo in self.db.execute(consulta):
+            mapa.setdefault(prod_id, promo)
+        return mapa
 
     def desactivar_expiradas(self, hoy: date) -> int:
         """Baja lógica automática de las promociones cuya fecha_fin ya pasó."""

@@ -8,8 +8,11 @@ from sqlalchemy.orm import Session
 
 from app.core.enums import EstadoReserva, TipoProducto
 from app.core.exceptions import BusinessRuleError, ConflictError, NotFoundError
+from app.models.comandas import Comanda
 from app.models.reservas import DetalleMenuAcordado, MenuAcordado, Reserva, Sena
 from app.models.salon import Mesa
+from app.modules.comandas.repository import ComandaRepository
+from app.modules.comandas.service import ComandaService
 from app.modules.reservas.repository import ReservaRepository
 from app.modules.reservas.schemas import (
     ClienteResumen,
@@ -23,8 +26,9 @@ from app.modules.reservas.schemas import (
     SenaOut,
 )
 
-# HU-11b: tiempo de tolerancia desde la hora de la reserva.
-TOLERANCIA = timedelta(minutes=15)
+# La fecha y hora solicitada de la reserva actúa como límite de vigencia.
+TOLERANCIA = timedelta(minutes=0)
+DURACION_FIJA_HORAS = 1
 
 
 class ReservaService:
@@ -35,12 +39,14 @@ class ReservaService:
     # ---------- HU-11a ----------
     def listar(self, filtros: ReservaFiltros) -> list[ReservaOut]:
         """CA11: reservas ordenadas por fecha y hora, con filtros opcionales."""
+        self.reservas.marcar_vencidas_ausentes()
         lista = self.reservas.listar(
             filtros.fecha, filtros.estado, filtros.cliente_id, filtros.sin_comanda
         )
         return [self._a_salida(r) for r in lista]
 
     def obtener(self, reserva_id: int) -> ReservaOut:
+        self.reservas.marcar_vencidas_ausentes()
         return self._a_salida(self._buscar(reserva_id))
 
     def crear(self, datos: ReservaCrear) -> ReservaOut:
@@ -64,7 +70,7 @@ class ReservaService:
 
         reserva = Reserva(
             fecha_hora=datetime.combine(datos.fecha, datos.hora),
-            duracion_horas=datos.duracion_horas,
+            duracion_horas=DURACION_FIJA_HORAS,
             cantidad_comensales=datos.cantidad_comensales,
             cliente_id=datos.cliente_id,
             estado=EstadoReserva.ACTIVA,
@@ -82,7 +88,7 @@ class ReservaService:
         detalles = self._validar_menu(datos.menu_acordado)
 
         reserva.fecha_hora = datetime.combine(datos.fecha, datos.hora)
-        reserva.duracion_horas = datos.duracion_horas
+        reserva.duracion_horas = DURACION_FIJA_HORAS
         reserva.cantidad_comensales = datos.cantidad_comensales
         reserva.cliente_id = datos.cliente_id
         reserva.mesas = mesas
@@ -109,14 +115,31 @@ class ReservaService:
 
     # ---------- HU-11b ----------
     def registrar_llegada(self, reserva_id: int) -> ReservaOut:
-        """CA1: la reserva pasa a CUMPLIDA y queda lista para abrir la comanda."""
+        """CA1: pasa a CUMPLIDA, abre la comanda y precarga el menú acordado."""
         reserva = self._activa(reserva_id)
+        mesas = list(reserva.mesas)
+        ocupadas = ComandaRepository(self.db).numeros_de_mesas_ocupadas(mesas)
+        if ocupadas:
+            raise ConflictError(
+                f"Las mesas {ocupadas} se encuentran ocupadas", "MESA_OCUPADA"
+            )
         reserva.estado = EstadoReserva.CUMPLIDA
         reserva.fecha_hora_llegada = datetime.now()
+        if reserva.comanda is None and mesas:
+            mozo = self.reservas.obtener_mozo_para_mesas(mesas)
+            comanda = Comanda(
+                cantidad_comensales=reserva.cantidad_comensales,
+                mozo=mozo,
+                mesas=mesas,
+                reserva=reserva,
+            )
+            if reserva.menu_acordado is not None:
+                ComandaService(self.db)._cargar_menu_acordado(comanda, reserva)
+            self.db.add(comanda)
         return self._a_salida(self.reservas.guardar(reserva))
 
     def registrar_ausencia(self, reserva_id: int) -> ReservaOut:
-        """CA2 y CA3: pasa a AUSENTE si venció la tolerancia; la seña no se devuelve."""
+        """CA2 y CA3: pasa a AUSENTE al alcanzar la vigencia; seña no se devuelve."""
         reserva = self._activa(reserva_id)
         vence = reserva.fecha_hora + TOLERANCIA
         ahora = datetime.now()
@@ -147,6 +170,17 @@ class ReservaService:
         return reserva
 
     def _validar(self, datos: ReservaDatos, excluir_id: int | None = None) -> list:
+        if (
+            datos.hora.minute != 0
+            or datos.hora.second != 0
+            or datos.hora.hour < 10
+            or datos.hora.hour > 23
+        ):
+            raise BusinessRuleError(
+                "El horario de la reserva debe ser en punto (HH:00) "
+                "entre las 10:00 y las 23:00",
+                "HORA_INVALIDA",
+            )
         inicio = datetime.combine(datos.fecha, datos.hora)
         if inicio <= datetime.now():  # CA4
             raise BusinessRuleError(
@@ -165,6 +199,11 @@ class ReservaService:
                 f"Las mesas {faltantes} no existen o están eliminadas",
                 "MESA_INEXISTENTE",
             )
+        if len({m.sector_id for m in mesas}) > 1:
+            raise BusinessRuleError(
+                "Las mesas elegidas deben pertenecer al mismo espacio/sector",
+                "MESAS_DISTINTO_SECTOR",
+            )
         capacidad = sum(m.capacidad for m in mesas)
         if capacidad < datos.cantidad_comensales:  # CA3
             raise BusinessRuleError(
@@ -173,7 +212,8 @@ class ReservaService:
                 f"{datos.cantidad_comensales} comensales",
                 "CAPACIDAD_INSUFICIENTE",
             )
-        fin = inicio + timedelta(hours=datos.duracion_horas)
+        self.reservas.marcar_vencidas_ausentes()
+        fin = inicio + timedelta(hours=DURACION_FIJA_HORAS)
         self._validar_disponibilidad(mesas, inicio, fin, excluir_id)  # CA2
         return mesas
 
