@@ -20,6 +20,7 @@ from app.modules.comandas.schemas import (
     DetalleAgregar,
     ComandaFiltros,
     MesaTableroOut,
+    ReservaTableroOut,
 )
 
 
@@ -239,11 +240,15 @@ class ComandaService:
         return self.comandas.guardar(comanda)
 
     def tablero_mesas(self) -> list[MesaTableroOut]:
-        """HU-06: estado operativo de las mesas del salón y su comanda en curso."""
+        """HU-06: estado operativo de las mesas del salón y su comanda en curso.
+
+        La reserva activa de hoy viaja aparte (`reserva_hoy`): la mesa sigue
+        usable hasta que se registre la llegada del cliente de la reserva.
+        """
         ReservaRepository(self.db).marcar_vencidas_ausentes()
         mesas = self.comandas.listar_mesas_activas()
         ids = [m.id for m in mesas]
-        reservadas = self.comandas.ids_mesas_reservadas_hoy(ids)
+        reservas = self.comandas.reservas_de_hoy(ids)
         en_curso = self.comandas.comandas_en_curso()
 
         comanda_por_mesa: dict[int, Comanda] = {}
@@ -267,12 +272,25 @@ class ComandaService:
                     else "esperando_cobro"
                 )
                 comanda_out = ComandaRespuesta.model_validate(comanda)
-            elif m.id in reservadas:
-                estado_mesa = "reservada"
-                comanda_out = None
             else:
                 estado_mesa = "libre"
                 comanda_out = None
+
+            reserva = reservas.get(m.id)
+            reserva_out = (
+                ReservaTableroOut(
+                    id=reserva.id,
+                    fecha_hora=reserva.fecha_hora,
+                    cliente=(
+                        f"{reserva.cliente.apellido}, {reserva.cliente.nombre}"
+                        if reserva.cliente is not None
+                        else None
+                    ),
+                    cantidad_comensales=reserva.cantidad_comensales,
+                )
+                if reserva is not None
+                else None
+            )
 
             resultado.append(
                 MesaTableroOut(
@@ -283,6 +301,7 @@ class ComandaService:
                     sector_nombre=m.sector.nombre,
                     estado_mesa=estado_mesa,
                     comanda=comanda_out,
+                    reserva_hoy=reserva_out,
                 )
             )
         return resultado

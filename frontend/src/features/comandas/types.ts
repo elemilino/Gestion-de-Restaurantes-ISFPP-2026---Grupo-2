@@ -25,7 +25,15 @@ export interface Comanda {
   detalles: DetalleComanda[]
 }
 
-export type EstadoMesaTablero = 'libre' | 'ocupada' | 'esperando_cobro' | 'reservada'
+export type EstadoMesaTablero = 'libre' | 'ocupada' | 'esperando_cobro'
+
+/** ReservaTableroOut: reserva activa de hoy en una mesa (aviso, no bloquea el uso). */
+export interface ReservaTablero {
+  id: number
+  fecha_hora: string
+  cliente: string | null
+  cantidad_comensales: number
+}
 
 /** MesaTableroOut. */
 export interface MesaTablero {
@@ -36,13 +44,13 @@ export interface MesaTablero {
   sector_nombre: string
   estado_mesa: EstadoMesaTablero
   comanda: Comanda | null
+  reserva_hoy: ReservaTablero | null
 }
 
 export interface ComandaCrear {
   dni_mozo: string
   cantidad_comensales?: number
   numeros_mesa?: number[]
-  reserva_id?: number
 }
 
 export interface FiltrosComandas {
@@ -50,13 +58,4 @@ export interface FiltrosComandas {
   fecha_desde?: string
   fecha_hasta?: string
   abierta?: boolean
-}
-
-/** Reserva cumplida sin comanda (para abrir la comanda desde la reserva, HU-05a CA8). */
-export interface ReservaPendiente {
-  id: number
-  hora: string
-  cantidad_comensales: number
-  cliente: { nombre: string; apellido: string } | null
-  mesas: { numero: number }[]
 }

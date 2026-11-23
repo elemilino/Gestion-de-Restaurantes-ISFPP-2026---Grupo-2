@@ -98,6 +98,25 @@ def test_hu11a_ca6_sena_con_medio_de_pago_inactivo(db, client, datos, medio_pago
     assert r.json()["code"] == "SENA_INVALIDA"
 
 
+def test_hu11a_ca6_sena_fuera_del_rango_permitido(client, datos, medio_pago):
+    for monto in ("999", "10001"):
+        r = client.post(
+            URL,
+            json=datos(sena={"monto": monto, "medio_pago_id": medio_pago.id}),
+        )
+        assert r.status_code == 422
+        assert r.json()["code"] == "SENA_INVALIDA"
+
+
+def test_hu11a_ca7_rechaza_plato_no_disponible(db, client, datos, plato):
+    plato.disponible = False
+    db.commit()
+    menu = [{"producto_id": plato.id, "cantidad": 2, "precio_acordado": "4500"}]
+    r = client.post(URL, json=datos(menu_acordado=menu))
+    assert r.status_code == 422
+    assert r.json()["code"] == "MENU_ACORDADO_INVALIDO"
+
+
 def test_hu11a_ca7_guarda_el_menu_acordado(client, datos, plato):
     menu = [{"producto_id": plato.id, "cantidad": 4, "precio_acordado": "4500"}]
     r = client.post(URL, json=datos(menu_acordado=menu))

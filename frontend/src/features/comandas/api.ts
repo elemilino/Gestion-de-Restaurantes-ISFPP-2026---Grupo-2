@@ -1,5 +1,5 @@
 import { apiDelete, apiGet, apiPatch, apiPost } from '../../api/client'
-import type { Comanda, ComandaCrear, FiltrosComandas, MesaTablero, ReservaPendiente } from './types'
+import type { Comanda, ComandaCrear, FiltrosComandas, MesaTablero } from './types'
 
 const BASE = '/comandas'
 
@@ -46,13 +46,3 @@ export const anularComanda = (id: number, motivo: string) =>
   apiPost<Comanda>(`${BASE}/${id}/anulacion`, { motivo })
 
 export const eliminarComanda = (id: number) => apiDelete(`${BASE}/${id}`)
-
-/** Reservas de hoy, cumplidas y todavía sin comanda (HU-05a CA8). */
-export function reservasPendientes(hoy: Date = new Date()) {
-  const fecha = [
-    hoy.getFullYear(),
-    String(hoy.getMonth() + 1).padStart(2, '0'),
-    String(hoy.getDate()).padStart(2, '0'),
-  ].join('-')
-  return apiGet<ReservaPendiente[]>(`/reservas?estado=CUMPLIDA&sin_comanda=true&fecha=${fecha}`)
-}

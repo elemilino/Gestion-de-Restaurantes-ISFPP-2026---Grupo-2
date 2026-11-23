@@ -76,7 +76,7 @@ export function CajaPage() {
         cuit_dni_cliente: cuit.trim() || null,
       })
       setAFacturar(null)
-      setAviso(`Factura #${factura.id} generada por ${formatMoneda(factura.importe_total)}`)
+      setAviso(`Factura #${factura.id} generada por ${formatMoneda(factura.total_a_pagar)}`)
       setFiltro('Adeudada')
       await recargar()
       setACobrar(factura)
@@ -204,7 +204,7 @@ export function CajaPage() {
                       </StatusBadge>
                     </td>
                     <td className="py-2.5 px-4 text-right tabular font-semibold">
-                      {formatMoneda(f.estado === 'Pagada' ? f.total_a_pagar : f.importe_total)}
+                      {formatMoneda(f.total_a_pagar)}
                     </td>
                     <td className="py-2.5 px-4 text-right">
                       {f.estado === 'Adeudada' ? (

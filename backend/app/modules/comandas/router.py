@@ -21,7 +21,9 @@ from app.modules.comandas.service import ComandaService
 
 router = APIRouter()
 operar_comanda = [Depends(require_roles(Rol.MOZO, Rol.ADMINISTRADOR))]
-ver_tablero = [Depends(require_roles(Rol.MOZO, Rol.ADMINISTRADOR, Rol.CAJERO))]
+ver_tablero = [
+    Depends(require_roles(Rol.MOZO, Rol.ADMINISTRADOR, Rol.CAJERO, Rol.RECEPCIONISTA))
+]
 
 
 @router.get(

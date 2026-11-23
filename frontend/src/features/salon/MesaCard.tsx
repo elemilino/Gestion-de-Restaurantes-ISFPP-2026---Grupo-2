@@ -3,7 +3,7 @@ import { Icon } from '../../components/Icon'
 import { StatusBadge } from '../../components/StatusBadge'
 import type { Tono } from '../../components/tonos'
 import { formatMoneda } from '../../lib/format'
-import type { EstadoMesa, MesaVista } from './mesaVista'
+import type { EstadoMesa, MesaVista, UrgenciaReserva } from './mesaVista'
 
 interface Apariencia {
   tono: Tono
@@ -35,12 +35,30 @@ const APARIENCIA: Record<EstadoMesa, Apariencia> = {
     fondo: 'from-brand-50/70',
     numero: 'bg-brand-500 text-white shadow-sm',
   },
-  reservada: {
-    tono: 'reservado',
-    etiqueta: 'Reservada',
-    borde: 'border border-status-reserved-border',
-    fondo: 'from-status-reserved-bg/40',
-    numero: 'bg-blue-100 text-blue-800',
+}
+
+/** Aviso de reserva según cercanía: azul normal, ámbar ≤ 60 min, rojo ≤ 15 min. */
+const URGENCIA: Record<
+  UrgenciaReserva,
+  { franja: string; caja: string; icono: string; detalle: string }
+> = {
+  normal: {
+    franja: 'bg-blue-500',
+    caja: 'bg-blue-50 border-blue-100 text-blue-900',
+    icono: 'text-blue-600',
+    detalle: 'text-blue-700',
+  },
+  proxima: {
+    franja: 'bg-amber-500',
+    caja: 'bg-amber-50 border-amber-200 text-amber-900',
+    icono: 'text-amber-600',
+    detalle: 'text-amber-700',
+  },
+  inminente: {
+    franja: 'bg-rose-500',
+    caja: 'bg-rose-50 border-rose-200 text-rose-900',
+    icono: 'text-rose-600',
+    detalle: 'text-rose-700',
   },
 }
 
@@ -48,25 +66,37 @@ function duracion(minutos: number): string {
   return minutos < 60 ? `${minutos} min` : `${Math.floor(minutos / 60)}h ${minutos % 60}m`
 }
 
-/** Tarjeta de mesa del salón (prototipo de Stitch). La acción depende del estado y rol. */
+function enCuanto(minutos: number): string {
+  return minutos <= 0 ? 'ahora' : `en ${duracion(minutos)}`
+}
+
+/** Tarjeta de mesa del salón (prototipo de Stitch). La acción depende del estado y rol.
+ * El color es el estado operativo; la reserva de hoy se muestra como aviso encima. */
 export function MesaCard({
   mesa,
   onAccion,
   puedeFacturar = false,
+  puedeAbrirComanda = true,
+  soloLectura = false,
 }: {
   mesa: MesaVista
   onAccion?: () => void
   puedeFacturar?: boolean
+  puedeAbrirComanda?: boolean
+  soloLectura?: boolean
 }) {
   const a = APARIENCIA[mesa.estado]
   const conComanda = mesa.estado === 'ocupada' || mesa.estado === 'esperando_cobro'
+  const u = mesa.reserva ? URGENCIA[mesa.reserva.urgencia] : null
 
   return (
     <article
       className={`bg-white rounded-2xl shadow-sm hover:shadow-md transition-all flex flex-col justify-between overflow-hidden relative ${a.borde}`}
     >
-      {mesa.estado === 'esperando_cobro' && (
+      {mesa.estado === 'esperando_cobro' ? (
         <div className="absolute top-0 left-0 right-0 h-1 bg-brand-500" />
+      ) : (
+        u && <div className={`absolute top-0 left-0 right-0 h-1 ${u.franja}`} />
       )}
       <div className={`p-4 bg-gradient-to-b to-white ${a.fondo}`}>
         <div className="flex items-center justify-between gap-2">
@@ -82,9 +112,7 @@ export function MesaCard({
                 <span>
                   {conComanda
                     ? `${mesa.comensales}/${mesa.capacidad} comensales`
-                    : mesa.estado === 'reservada'
-                      ? `${mesa.comensales} comensales`
-                      : `Capacidad ${mesa.capacidad}`}
+                    : `Capacidad ${mesa.capacidad}`}
                 </span>
               </div>
               <span className="text-[11px] text-slate-500 font-medium truncate">
@@ -124,12 +152,19 @@ export function MesaCard({
             <span className="truncate">{mesa.nota}</span>
           </div>
         )}
-        {mesa.estado === 'reservada' && mesa.reserva && (
-          <div className="mt-3 p-2.5 rounded-xl bg-blue-50 border border-blue-100 flex items-center gap-2 text-xs text-blue-900">
-            <Icon name="calendar_clock" className="text-base text-blue-600 shrink-0" />
+        {mesa.reserva && u && (
+          <div className={`mt-3 p-2.5 rounded-xl border flex items-center gap-2 text-xs ${u.caja}`}>
+            <Icon name="calendar_clock" className={`text-base shrink-0 ${u.icono}`} />
             <div className="flex flex-col min-w-0">
-              <span className="font-bold text-[11px] leading-tight">{mesa.reserva.hora}</span>
-              <span className="text-[10px] text-blue-700 truncate">{mesa.reserva.peticion}</span>
+              <span className="font-bold text-[11px] leading-tight">
+                Reserva {mesa.reserva.hora} · {mesa.reserva.comensales} pers. (
+                {enCuanto(mesa.reserva.minutos)})
+              </span>
+              <span className={`text-[10px] truncate ${u.detalle}`}>
+                {conComanda && mesa.reserva.urgencia !== 'normal'
+                  ? `Liberar mesa antes de las ${mesa.reserva.hora}`
+                  : (mesa.reserva.titular ?? 'Ver detalle en Reservas')}
+              </span>
             </div>
           </div>
         )}
@@ -151,19 +186,20 @@ export function MesaCard({
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                 Estado
               </span>
-              <span
-                className={`text-xs font-semibold ${mesa.estado === 'reservada' ? 'text-blue-700' : 'text-slate-600'}`}
-              >
-                {mesa.estado === 'reservada' ? 'Por llegar' : 'Disponible'}
-              </span>
+              <span className="text-xs font-semibold text-slate-600">Disponible</span>
             </>
           )}
         </div>
-        {mesa.estado === 'libre' && (
-          <Button icono="add_circle" className="w-full" onClick={onAccion}>
-            Abrir comanda
-          </Button>
-        )}
+        {mesa.estado === 'libre' &&
+          (puedeAbrirComanda ? (
+            <Button icono="add_circle" className="w-full" onClick={onAccion}>
+              Abrir comanda
+            </Button>
+          ) : (
+            <div className="h-10 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-[11px] font-semibold text-slate-400">
+              {soloLectura ? 'Solo consulta' : 'Sin acciones disponibles'}
+            </div>
+          ))}
         {mesa.estado === 'ocupada' && (
           <Button variante="secundario" icono="receipt_long" className="w-full" onClick={onAccion}>
             Ver comanda
@@ -184,11 +220,6 @@ export function MesaCard({
               Ver comanda
             </Button>
           ))}
-        {mesa.estado === 'reservada' && (
-          <Button variante="reserva" icono="how_to_reg" className="w-full" onClick={onAccion}>
-            Registrar llegada
-          </Button>
-        )}
       </div>
     </article>
   )

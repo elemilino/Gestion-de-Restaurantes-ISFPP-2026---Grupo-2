@@ -134,8 +134,21 @@ class ComandaRespuesta(BaseModel):
     detalles: list[DetalleRespuesta]
 
 
+class ReservaTableroOut(BaseModel):
+    """Reserva ACTIVA de hoy en una mesa: aviso del tablero, no bloquea el uso."""
+
+    id: int
+    fecha_hora: datetime
+    cliente: str | None = None
+    cantidad_comensales: int
+
+
 class MesaTableroOut(BaseModel):
-    """Mesa del salón con su estado operativo y comanda para el tablero (/mesas)."""
+    """Mesa del salón con su estado operativo, comanda y reserva de hoy (/mesas).
+
+    `estado_mesa` es puramente operativo (libre/ocupada/esperando_cobro): una
+    mesa con reserva para hoy sigue usable hasta registrar la llegada.
+    """
 
     id: int
     numero: int
@@ -144,6 +157,7 @@ class MesaTableroOut(BaseModel):
     sector_nombre: str
     estado_mesa: str
     comanda: ComandaRespuesta | None = None
+    reserva_hoy: ReservaTableroOut | None = None
 
 
 # HU-05f

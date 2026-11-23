@@ -29,6 +29,8 @@ from app.modules.reservas.schemas import (
 # La fecha y hora solicitada de la reserva actúa como límite de vigencia.
 TOLERANCIA = timedelta(minutes=0)
 DURACION_FIJA_HORAS = 1
+SENA_MINIMA = Decimal("1000")
+SENA_MAXIMA = Decimal("10000")
 
 
 class ReservaService:
@@ -57,9 +59,11 @@ class ReservaService:
                 "La reserva necesita una seña", "SENA_OBLIGATORIA"
             )  # CA6
         medio_pago = self.reservas.buscar_medio_pago(datos.sena.medio_pago_id)
-        if datos.sena.monto <= 0:
+        if not (SENA_MINIMA <= datos.sena.monto <= SENA_MAXIMA):
             raise BusinessRuleError(
-                "El monto de la seña tiene que ser mayor a $0", "SENA_INVALIDA"
+                f"El monto de la seña tiene que estar entre {SENA_MINIMA} y "
+                f"{SENA_MAXIMA} pesos",
+                "SENA_INVALIDA",
             )
         if medio_pago is None or not medio_pago.activo:
             raise BusinessRuleError(
@@ -241,11 +245,11 @@ class ReservaService:
             producto = self.reservas.buscar_producto(item.producto_id)
             if (
                 producto is None
-                or not producto.activo
+                or not producto.disponible_efectivo
                 or producto.tipo != TipoProducto.PLATO
             ):
                 raise BusinessRuleError(
-                    "El menú acordado solo puede tener platos activos",
+                    "El menú acordado solo puede tener platos disponibles",
                     "MENU_ACORDADO_INVALIDO",
                 )
             if item.cantidad <= 0 or item.precio_acordado <= Decimal(0):

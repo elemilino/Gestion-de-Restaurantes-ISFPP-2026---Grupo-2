@@ -48,6 +48,7 @@ class FacturaOut(BaseModel):
     tipo_factura: TipoFactura
     fecha: datetime
     importe_total: Decimal
+    descuento_sena: Decimal
     total_a_pagar: Decimal
     monto_recibido: Decimal
     estado: EstadoFactura
@@ -71,6 +72,7 @@ class ComprobanteOut(BaseModel):
     mozo_nombre: str | None
     items: list[ItemComprobante]
     importe_total: Decimal
+    descuento_sena: Decimal
     total_a_pagar: Decimal
     monto_recibido: Decimal
     vuelto: Decimal

@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 
 import { Icon } from './Icon'
 
@@ -10,6 +10,8 @@ interface ModalProps {
   ancho?: string
   /** Botones del pie (ej. Cancelar / Guardar). */
   acciones?: ReactNode
+  /** `superior` para un diálogo abierto desde otro modal (ej. alta de cliente en Reservas). */
+  nivel?: 'base' | 'superior'
 }
 
 /** Diálogo centrado. Cierra con Escape o con la X. */
@@ -20,10 +22,17 @@ export function Modal({
   children,
   ancho = 'max-w-md',
   acciones,
+  nivel = 'base',
 }: ModalProps) {
+  const dialogoRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     function manejarEscape(e: KeyboardEvent) {
-      if (e.key === 'Escape') onCerrar()
+      if (e.key !== 'Escape') return
+      // Con modales anidados, solo responde el último abierto (document order).
+      const abiertos = document.querySelectorAll('[aria-modal="true"]')
+      if (abiertos.length > 0 && abiertos[abiertos.length - 1] !== dialogoRef.current) return
+      onCerrar()
     }
     if (abierto) {
       document.addEventListener('keydown', manejarEscape)
@@ -31,15 +40,18 @@ export function Modal({
     }
     return () => {
       document.removeEventListener('keydown', manejarEscape)
-      document.body.style.overflow = ''
+      if (!document.querySelector('[aria-modal="true"]')) document.body.style.overflow = ''
     }
   }, [abierto, onCerrar])
 
   if (!abierto) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200">
+    <div
+      className={`fixed inset-0 ${nivel === 'superior' ? 'z-[60]' : 'z-50'} flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-200`}
+    >
       <div
+        ref={dialogoRef}
         className={`bg-white w-full ${ancho} rounded-2xl shadow-xl border border-amber-100 flex flex-col overflow-hidden max-h-[90vh]`}
         role="dialog"
         aria-modal="true"

@@ -9,8 +9,9 @@ import { mensajeDe } from '../../lib/errores'
 import { Rol } from '../../lib/roles'
 import { listarMozos, obtenerMiPerfilMozo } from '../mozos/api'
 import type { Mozo } from '../mozos/types'
-import { crearComanda, reservasPendientes } from './api'
-import type { Comanda, MesaTablero, ReservaPendiente } from './types'
+import { horaReserva, minutosHastaReserva, MINUTOS_PROXIMA } from '../salon/mesaVista'
+import { crearComanda } from './api'
+import type { Comanda, MesaTablero } from './types'
 
 interface Props {
   mesa: MesaTablero | null
@@ -20,18 +21,15 @@ interface Props {
   onCreada: (comanda: Comanda) => void
 }
 
-/** HU-05a: abrir una comanda en una mesa libre o desde una reserva cumplida (CA8). */
+/** HU-05a: abrir una comanda en una mesa libre (o varias del mismo sector). */
 export function NuevaComandaModal({ mesa, libres, onCerrar, onCreada }: Props) {
   const { usuario } = useAuth()
   const esMozo = usuario?.rol === Rol.MOZO
-  const [modo, setModo] = useState<'mesa' | 'reserva'>('mesa')
   const [perfil, setPerfil] = useState<Mozo | null>(null)
   const [mozos, setMozos] = useState<Mozo[]>([])
   const [dni, setDni] = useState('')
   const [comensales, setComensales] = useState('2')
   const [extras, setExtras] = useState<number[]>([])
-  const [reservas, setReservas] = useState<ReservaPendiente[]>([])
-  const [reservaId, setReservaId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
 
@@ -56,9 +54,6 @@ export function NuevaComandaModal({ mesa, libres, onCerrar, onCreada }: Props) {
         })
         .catch(() => vigente && setMozos([]))
     }
-    reservasPendientes()
-      .then((r) => vigente && setReservas(r))
-      .catch(() => vigente && setReservas([]))
     return () => {
       vigente = false
     }
@@ -66,20 +61,20 @@ export function NuevaComandaModal({ mesa, libres, onCerrar, onCreada }: Props) {
 
   if (!mesa) return null
   const otras = libres.filter((m) => m.id !== mesa.id && m.sector_id === mesa.sector_id)
+  const minutosReserva = mesa.reserva_hoy ? minutosHastaReserva(mesa.reserva_hoy) : null
+  const reservaCerca =
+    mesa.reserva_hoy !== null && minutosReserva !== null && minutosReserva <= MINUTOS_PROXIMA
 
   async function guardar() {
     if (!mesa) return
     setGuardando(true)
     setError(null)
     try {
-      const comanda =
-        modo === 'reserva'
-          ? await crearComanda({ dni_mozo: dni, reserva_id: Number(reservaId) })
-          : await crearComanda({
-              dni_mozo: dni,
-              cantidad_comensales: Number(comensales),
-              numeros_mesa: [mesa.numero, ...extras],
-            })
+      const comanda = await crearComanda({
+        dni_mozo: dni,
+        cantidad_comensales: Number(comensales),
+        numeros_mesa: [mesa.numero, ...extras],
+      })
       onCreada(comanda)
     } catch (e) {
       setError(mensajeDe(e))
@@ -98,11 +93,7 @@ export function NuevaComandaModal({ mesa, libres, onCerrar, onCreada }: Props) {
           <Button variante="secundario" onClick={onCerrar}>
             Cancelar
           </Button>
-          <Button
-            icono="add_circle"
-            onClick={guardar}
-            disabled={guardando || !dni || (modo === 'reserva' && !reservaId)}
-          >
+          <Button icono="add_circle" onClick={guardar} disabled={guardando || !dni}>
             Abrir comanda
           </Button>
         </>
@@ -110,24 +101,15 @@ export function NuevaComandaModal({ mesa, libres, onCerrar, onCreada }: Props) {
     >
       <div className="flex flex-col gap-4">
         {error && <Alert tono="error">{error}</Alert>}
-        <div className="flex gap-1.5" role="group" aria-label="Origen de la comanda">
-          {(['mesa', 'reserva'] as const).map((m) => (
-            <button
-              key={m}
-              type="button"
-              aria-pressed={modo === m}
-              onClick={() => setModo(m)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold ${
-                modo === m
-                  ? 'bg-slate-900 text-white'
-                  : 'bg-canvas text-slate-600 border border-borde'
-              }`}
-            >
-              {m === 'mesa' ? 'Cliente sin reserva' : `Desde una reserva (${reservas.length})`}
-            </button>
-          ))}
-        </div>
-
+        {reservaCerca && mesa.reserva_hoy && (
+          <Alert tono="aviso">
+            Esta mesa tiene una reserva a las {horaReserva(mesa.reserva_hoy)}
+            {minutosReserva !== null && minutosReserva > 0
+              ? ` (en ${minutosReserva} min)`
+              : ' (ahora)'}
+            . Podés abrir la comanda, pero liberá la mesa antes de ese horario.
+          </Alert>
+        )}
         {esMozo ? (
           <p className="text-xs text-slate-600">
             Mozo:{' '}
@@ -151,73 +133,45 @@ export function NuevaComandaModal({ mesa, libres, onCerrar, onCreada }: Props) {
           </Field>
         )}
 
-        {modo === 'mesa' ? (
-          <>
-            <Field
-              label="Comensales"
-              htmlFor="nueva-comensales"
-              ayuda={`La mesa tiene ${mesa.capacidad} lugares`}
-            >
-              <input
-                id="nueva-comensales"
-                type="number"
-                min={1}
-                className={CLASE_INPUT}
-                value={comensales}
-                onChange={(e) => setComensales(e.target.value)}
-              />
-            </Field>
-            {otras.length > 0 && (
-              <fieldset className="flex flex-col gap-1.5">
-                <legend className="text-xs font-bold text-slate-700 mb-1">
-                  Juntar con otras mesas libres
-                </legend>
-                <div className="flex flex-wrap gap-2">
-                  {otras.map((m) => (
-                    <label key={m.id} className="flex items-center gap-1.5 text-xs text-slate-700">
-                      <input
-                        type="checkbox"
-                        checked={extras.includes(m.numero)}
-                        onChange={(e) =>
-                          setExtras((actual) =>
-                            e.target.checked
-                              ? [...actual, m.numero]
-                              : actual.filter((n) => n !== m.numero),
-                          )
-                        }
-                      />
-                      Mesa {m.numero} ({m.capacidad})
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-            )}
-          </>
-        ) : reservas.length === 0 ? (
-          <Alert tono="info">No hay reservas cumplidas esperando comanda.</Alert>
-        ) : (
-          <Field
-            label="Reserva cumplida"
-            htmlFor="nueva-reserva"
-            ayuda="Usa las mesas, los comensales y el menú acordado de la reserva"
-          >
-            <select
-              id="nueva-reserva"
-              className={CLASE_INPUT}
-              value={reservaId}
-              onChange={(e) => setReservaId(e.target.value)}
-            >
-              <option value="">Elegí la reserva…</option>
-              {reservas.map((r) => (
-                <option key={r.id} value={r.id}>
-                  #{r.id} ·{' '}
-                  {r.cliente ? `${r.cliente.apellido}, ${r.cliente.nombre}` : 'Sin cliente'} ·{' '}
-                  {r.hora.slice(0, 5)} · mesas {r.mesas.map((m) => m.numero).join(', ')} ·{' '}
-                  {r.cantidad_comensales} pers.
-                </option>
+        <Field
+          label="Comensales"
+          htmlFor="nueva-comensales"
+          ayuda={`La mesa tiene ${mesa.capacidad} lugares`}
+        >
+          <input
+            id="nueva-comensales"
+            type="number"
+            min={1}
+            className={CLASE_INPUT}
+            value={comensales}
+            onChange={(e) => setComensales(e.target.value)}
+          />
+        </Field>
+        {otras.length > 0 && (
+          <fieldset className="flex flex-col gap-1.5">
+            <legend className="text-xs font-bold text-slate-700 mb-1">
+              Juntar con otras mesas libres
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {otras.map((m) => (
+                <label key={m.id} className="flex items-center gap-1.5 text-xs text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={extras.includes(m.numero)}
+                    onChange={(e) =>
+                      setExtras((actual) =>
+                        e.target.checked
+                          ? [...actual, m.numero]
+                          : actual.filter((n) => n !== m.numero),
+                      )
+                    }
+                  />
+                  Mesa {m.numero} ({m.capacidad})
+                  {m.reserva_hoy && ` · reserva ${horaReserva(m.reserva_hoy)}`}
+                </label>
               ))}
-            </select>
-          </Field>
+            </div>
+          </fieldset>
         )}
       </div>
     </Modal>

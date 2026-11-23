@@ -19,12 +19,19 @@ import { listarSectores } from './api'
 import { MesaCard } from './MesaCard'
 import { aVista, type EstadoMesa } from './mesaVista'
 
-const FILTROS: { estado: EstadoMesa; etiqueta: string; tono: Tono }[] = [
+/** "Reservadas" no es un estado operativo: cruza todos los estados (mesas con reserva hoy). */
+type Filtro = EstadoMesa | 'reservadas'
+
+const FILTROS: { estado: Filtro; etiqueta: string; tono: Tono }[] = [
   { estado: 'libre', etiqueta: 'Libres', tono: 'libre' },
   { estado: 'ocupada', etiqueta: 'Ocupadas', tono: 'ocupado' },
   { estado: 'esperando_cobro', etiqueta: 'Esperando cobro', tono: 'pendiente' },
-  { estado: 'reservada', etiqueta: 'Reservadas', tono: 'reservado' },
+  { estado: 'reservadas', etiqueta: 'Reservadas', tono: 'reservado' },
 ]
+
+function coincide(mesa: MesaTablero, filtro: Filtro): boolean {
+  return filtro === 'reservadas' ? mesa.reserva_hoy !== null : mesa.estado_mesa === filtro
+}
 
 interface SectorOpcion {
   id: number
@@ -42,13 +49,16 @@ export function MesasPage() {
   const navigate = useNavigate()
   const esMozo = usuario?.rol === Rol.MOZO
   const puedeFacturar = usuario?.rol === Rol.ADMINISTRADOR || usuario?.rol === Rol.CAJERO
+  // Recepción solo consulta; caja puede facturar/ver comandas pero no abrirlas.
+  const puedeAbrirComanda = usuario?.rol === Rol.ADMINISTRADOR || esMozo
+  const soloLectura = usuario?.rol === Rol.RECEPCIONISTA
 
   const [mesas, setMesas] = useState<MesaTablero[]>([])
   const [sectoresApi, setSectoresApi] = useState<SectorOpcion[]>([])
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [aviso, setAviso] = useState<string | null>(null)
-  const [filtro, setFiltro] = useState<EstadoMesa | null>(null)
+  const [filtro, setFiltro] = useState<Filtro | null>(null)
   const [sectorActivo, setSectorActivo] = useState<string | null>(null)
   const [perfilMozo, setPerfilMozo] = useState<Mozo | null>(null)
   const [abrirEn, setAbrirEn] = useState<MesaTablero | null>(null)
@@ -116,9 +126,8 @@ export function MesasPage() {
     }
     if (mesa.comanda) {
       setComandaId(mesa.comanda.id)
-    } else if (mesa.estado_mesa === 'reservada' && !esMozo) {
-      navigate('/reservas')
-    } else {
+    } else if (puedeAbrirComanda) {
+      // Libre, con o sin reserva para hoy: la mesa se puede usar normalmente.
       setAbrirEn(mesa)
     }
   }
@@ -134,10 +143,10 @@ export function MesasPage() {
       : mesas
 
   const visibles = filtro
-    ? delSector.filter((m) => m.estado_mesa === filtro)
+    ? delSector.filter((m) => coincide(m, filtro))
     : [...delSector].sort((a, b) => {
-        const aReservada = a.estado_mesa === 'reservada' ? 0 : 1
-        const bReservada = b.estado_mesa === 'reservada' ? 0 : 1
+        const aReservada = a.reserva_hoy ? 0 : 1
+        const bReservada = b.reserva_hoy ? 0 : 1
         if (aReservada !== bReservada) return aReservada - bReservada
         return a.numero - b.numero
       })
@@ -202,7 +211,7 @@ export function MesasPage() {
               key={f.estado}
               etiqueta={f.etiqueta}
               tono={f.tono}
-              cantidad={delSector.filter((m) => m.estado_mesa === f.estado).length}
+              cantidad={delSector.filter((m) => coincide(m, f.estado)).length}
               activo={filtro === f.estado}
               onClick={() => setFiltro(f.estado)}
             />
@@ -233,6 +242,8 @@ export function MesasPage() {
               key={mesa.id}
               mesa={aVista(mesa)}
               puedeFacturar={puedeFacturar}
+              puedeAbrirComanda={puedeAbrirComanda}
+              soloLectura={soloLectura}
               onAccion={() => accion(mesa)}
             />
           ))}
